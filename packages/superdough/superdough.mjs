@@ -12,7 +12,7 @@ import workletsUrl from './worklets.mjs?audioworklet';
 import { createFilter, gainNode, getCompressor, getWorklet, webAudioTimeout } from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger, errorLogger } from './logger.mjs';
-import { loadBuffer } from './sampler.mjs';
+import { loadBuffer, onTriggerSample } from './sampler.mjs';
 
 export const DEFAULT_MAX_POLYPHONY = 128;
 const DEFAULT_AUDIO_DEVICE_NAME = 'System Standard';
@@ -241,6 +241,59 @@ function loadWorklets() {
   return workletsLoading;
 }
 
+const RESAMPLE_SECONDS = 5;
+let resampleArrays = {};
+let resampleRecorders = {};
+function setupResampling(idx) {
+  const ac = getAudioContext();
+  const sr = ac.sampleRate;
+  const N = RESAMPLE_SECONDS * sr;
+  const left = new Float32Array(N);
+  const right = new Float32Array(N);
+  const rec = getWorklet(ac, 'recorder-processor', {}, { channelCount: 2, channelCountMode: 'explicit' }); // params, config
+  rec.port.onmessage = e => {
+    const [L, R] = e.data.arrs;
+    const idx = e.data.idx;
+    const n = L.length;
+    const tail = Math.min(n, N - idx);
+    left.set(L.subarray(0, tail), idx);
+    right.set(R.subarray(0, tail), idx);
+    if (tail < n) {
+      // Wrap
+      left.set(L.subarray(tail), 0);
+      right.set(R.subarray(tail), 0);
+    }
+  };
+  resampleArrays[idx] = [left, right];
+  resampleRecorders[idx] = rec;
+}
+
+function getResampleRecorder(idx) {
+  if (resampleRecorders[idx] === undefined) {
+    setupResampling(idx);
+  }
+  return resampleRecorders[idx];
+}
+
+export function getResampleBuffer(idx) {
+  if (resampleArrays[idx] === undefined) {
+    setupResampling(idx);
+  }
+  const ac = getAudioContext();
+  const sr = ac.sampleRate;
+  const buff = ac.createBuffer(2, RESAMPLE_SECONDS * sr, sr);
+  const [left, right] = resampleArrays[idx];
+  buff.getChannelData(0).set(left);
+  buff.getChannelData(1).set(right);
+  return buff;
+}
+
+function registerResampler() {
+  registerSound('resample', (t, value, onended) => onTriggerSample(t, value, onended, ['resample']), {
+    type: 'resample',
+  });
+}
+
 // this function should be called on first user interaction (to avoid console warning)
 export async function initAudio(options = {}) {
   const {
@@ -285,6 +338,7 @@ export async function initAudio(options = {}) {
   } catch (err) {
     console.warn('could not load AudioWorklet effects', err);
   }
+  registerResampler();
   logger('[superdough] ready');
 }
 let audioReady;
@@ -545,6 +599,17 @@ function effectSend(input, effect, wet) {
   return send;
 }
 
+function effectSendSafe(input, targetNode, wet) {
+  const ac = input.context;
+  const send = new GainNode(ac, { gain: 0 });
+  input.connect(send).connect(targetNode);
+  const t = ac.currentTime;
+  send.gain.cancelScheduledValues(t);
+  send.gain.setValueAtTime(send.gain.value, t);
+  send.gain.linearRampToValueAtTime(wet, t + 0.003); // 3 ms
+  return send;
+}
+
 export function resetGlobalEffects() {
   orbits = {};
   analysers = {};
@@ -670,6 +735,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     compressorKnee,
     compressorAttack,
     compressorRelease,
+    resample,
+    resampleNum,
   } = value;
 
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
@@ -870,6 +937,10 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   // last gain
   const post = new GainNode(ac, { gain: postgain });
   chain.push(post);
+
+  if (resample > 0) {
+    effectSendSafe(post, getResampleRecorder(resampleNum ?? 0), resample);
+  }
 
   // delay
   let delaySend;

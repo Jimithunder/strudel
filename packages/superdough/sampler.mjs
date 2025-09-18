@@ -1,5 +1,5 @@
 import { noteToMidi, valueToMidi, getSoundIndex } from './util.mjs';
-import { getAudioContext, registerSound } from './index.mjs';
+import { getAudioContext, registerSound, getResampleBuffer } from './index.mjs';
 import { getADSRValues, getParamADSR, getPitchEnvelope, getVibratoOscillator } from './helpers.mjs';
 import { logger } from './logger.mjs';
 
@@ -59,8 +59,12 @@ export const getSampleBuffer = async (hapValue, bank, resolveUrl) => {
     sampleUrl = await resolveUrl(sampleUrl);
   }
   const ac = getAudioContext();
-  const buffer = await loadBuffer(sampleUrl, ac, label);
-
+  let buffer;
+  if (sampleUrl === 'resample') {
+    buffer = getResampleBuffer(hapValue.n ?? 0);
+  } else {
+    buffer = await loadBuffer(sampleUrl, ac, label);
+  }
   if (hapValue.unit === 'c') {
     playbackRate = playbackRate * buffer.duration;
   }
