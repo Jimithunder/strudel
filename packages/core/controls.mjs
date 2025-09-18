@@ -2111,3 +2111,4 @@ export const scrub = register(
 
 export const { resample } = registerControl('resample');
 export const { resampleNum } = registerControl('resampleNum');
+export const { input } = registerControl('input');

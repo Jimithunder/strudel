@@ -251,7 +251,7 @@ function setupResampling(idx) {
   const left = new Float32Array(N);
   const right = new Float32Array(N);
   const rec = getWorklet(ac, 'recorder-processor', {}, { channelCount: 2, channelCountMode: 'explicit' }); // params, config
-  rec.port.onmessage = e => {
+  rec.port.onmessage = (e) => {
     const [L, R] = e.data.arrs;
     const idx = e.data.idx;
     const n = L.length;
@@ -294,6 +294,7 @@ function registerResampler() {
   });
 }
 
+let AUDIO_DEVICES;
 // this function should be called on first user interaction (to avoid console warning)
 export async function initAudio(options = {}) {
   const {
@@ -313,8 +314,8 @@ export async function initAudio(options = {}) {
 
   if (audioDeviceName != null && audioDeviceName != DEFAULT_AUDIO_DEVICE_NAME) {
     try {
-      const devices = await getAudioDevices();
-      const id = devices.get(audioDeviceName);
+      AUDIO_DEVICES = await getAudioDevices();
+      const id = AUDIO_DEVICES.get(audioDeviceName);
       const isValidID = (id ?? '').length > 0;
       if (audioCtx.sinkId !== id && isValidID) {
         await audioCtx.setSinkId(id);
@@ -737,6 +738,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     compressorRelease,
     resample,
     resampleNum,
+    input,
   } = value;
 
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
@@ -787,15 +789,22 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   // get source AudioNode
+  const onEnded = () => {
+    audioNodes.forEach((n) => n?.disconnect());
+    activeSoundSources.delete(chainID);
+  };
   let sourceNode;
   if (source) {
     sourceNode = source(t, value, hapDuration, cps);
+  } else if (input) {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: { exact: AUDIO_DEVICES.get(input) } },
+    });
+    sourceNode = ac.createMediaStreamSource(stream);
+    activeSoundSources.set(chainID, { node: sourceNode });
+    webAudioTimeout(ac, onEnded, t, endWithRelease);
   } else if (getSound(s)) {
     const { onTrigger } = getSound(s);
-    const onEnded = () => {
-      audioNodes.forEach((n) => n?.disconnect());
-      activeSoundSources.delete(chainID);
-    };
     const soundHandle = await onTrigger(t, value, onEnded);
 
     if (soundHandle) {
@@ -811,7 +820,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     return;
   }
 
-  if (ac.currentTime > t) {
+  if (ac.currentTime > t && !input) {
     logger('[webaudio] skip hap: still loading', ac.currentTime - t);
     return;
   }

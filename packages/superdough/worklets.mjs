@@ -916,7 +916,8 @@ class RecorderProcessor extends AudioWorkletProcessor {
   }
   process(inputs, _outputs, _parameters) {
     const input = inputs[0];
-    const L = input[0], R = input[1] || input[0];
+    const L = input[0],
+      R = input[1] || input[0];
     this.port.postMessage({ idx: this.idx % this.arrLen, arrs: [L, R] });
     this.idx += blockSize;
     return true;
