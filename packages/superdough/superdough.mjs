@@ -9,7 +9,7 @@ import './reverb.mjs';
 import './vowel.mjs';
 import { clamp, nanFallback, _mod, cycleToSeconds, secondsToCycle } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
-import { createFilter, gainNode, getCompressor, getWorklet, webAudioTimeout } from './helpers.mjs';
+import { createFilter, gainNode, getCompressor, getWorklet, webAudioTimeout, getParamADSR } from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger, errorLogger } from './logger.mjs';
 import { loadBuffer, onTriggerSample } from './sampler.mjs';
@@ -593,6 +593,28 @@ export function getAnalyzerData(type = 'time', id = 1) {
   return analysersData[id];
 }
 
+const CACHED_INPUTS = {};
+export async function getInput(input) {
+  let sourceNode = CACHED_INPUTS[input];
+  if (sourceNode === undefined) {
+    const ac = getAudioContext();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        deviceId: { exact: AUDIO_DEVICES.get(input) },
+        channelCount: { ideal: 2 },
+        sampleRate: { ideal: ac.sampleRate },
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        latency: { ideal: 0.01 },
+      },
+    });
+    sourceNode = ac.createMediaStreamSource(stream);
+    CACHED_INPUTS[input] = sourceNode;
+  }
+  return sourceNode;
+}
+
 function effectSend(input, effect, wet) {
   const send = gainNode(wet);
   input.connect(send);
@@ -797,12 +819,24 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   if (source) {
     sourceNode = source(t, value, hapDuration, cps);
   } else if (input) {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { deviceId: { exact: AUDIO_DEVICES.get(input) } },
-    });
-    sourceNode = ac.createMediaStreamSource(stream);
-    activeSoundSources.set(chainID, { node: sourceNode });
-    webAudioTimeout(ac, onEnded, t, endWithRelease);
+    sourceNode = await getInput(input);
+    const [attack, decay, sustain, release] = getADSRValues(
+      [value.attack, value.decay, value.sustain, value.release],
+      'linear',
+      [0.001, 0.05, 0.6, 0.01],
+    );
+    const envGain = gainNode(0);
+    sourceNode = sourceNode.connect(envGain);
+    getParamADSR(sourceNode.gain, attack, decay, sustain, release, 0, 1, t, endWithRelease, 'linear');
+    webAudioTimeout(
+      ac,
+      () => {
+        envGain.disconnect();
+        onEnded();
+      },
+      t,
+      endWithRelease,
+    );
   } else if (getSound(s)) {
     const { onTrigger } = getSound(s);
     const soundHandle = await onTrigger(t, value, onEnded);
@@ -820,7 +854,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     return;
   }
 
-  if (ac.currentTime > t && !input) {
+  if (ac.currentTime > t) {
     logger('[webaudio] skip hap: still loading', ac.currentTime - t);
     return;
   }
