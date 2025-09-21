@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from 'react';
 import PlayCircleIcon from '@heroicons/react/20/solid/PlayCircleIcon';
 import StopCircleIcon from '@heroicons/react/20/solid/StopCircleIcon';
 import cx from '@src/cx.mjs';
@@ -12,6 +13,68 @@ export function Header({ context, embedded = false }) {
     context;
   const isEmbedded = typeof window !== 'undefined' && (embedded || window.location !== window.parent.location);
   const { isZen, isButtonRowHidden, isCSSAnimationDisabled, fontFamily } = useSettings();
+
+  // State
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [playTime, setPlayTime] = useState(0);
+  const [currentCps, setCurrentCps] = useState(0.5);
+  const [currentCpm, setCurrentCpm] = useState(30);
+  const [musicPosition, setMusicPosition] = useState({ bars: 1, beats: 1, sixteenths: 1, bars_count: 1 });
+
+  // Function for set position cycle from scheduler
+  const setCyclePosition = useCallback((position) => {
+    const scheduler = context.editorRef?.current?.repl?.scheduler;
+    if (scheduler) {
+      if (typeof scheduler.setCycle === 'function') {
+        scheduler.setCycle(position);
+      } else if (scheduler.lastBegin !== undefined) {
+        scheduler.lastBegin = position;
+        if (scheduler.lastEnd !== undefined) {
+          scheduler.lastEnd = position + 1;
+        }
+      }
+    }
+  }, [context.editorRef]);
+
+  // Update position
+  const updateMusicPosition = useCallback((cyclePosition) => {
+    const totalSixteenths = cyclePosition * 16;
+    const bars = Math.floor(totalSixteenths / 16) + 1;
+    const remainingSixteenths = totalSixteenths % 16;
+    const beats = Math.floor(remainingSixteenths / 4) + 1;
+    const sixteenths = Math.floor(remainingSixteenths % 4) + 1;
+    const bars_count = ((bars - 1) % 8) + 1;
+    setMusicPosition({ bars, beats, sixteenths, bars_count });
+  }, []);
+
+  // Effect for updating time, playtime, CPS, CPM and position
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+      setPlayTime((prev) => prev + 0.1); // add 100ms to playTime
+
+      const scheduler = context.editorRef?.current?.repl?.scheduler;
+      if (scheduler) {
+        setCurrentCps(scheduler.cps || 0.5);
+        setCurrentCpm((scheduler.cps || 0.5) * 60);
+        if (started) {
+          const currentCycle = scheduler.now();
+          updateMusicPosition(currentCycle);
+        }
+      }
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [started, context.editorRef, updateMusicPosition]);
+
+  // Time format
+  const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const formatDuration = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+  const formatMusicPosition = ({ bars, beats, sixteenths, bars_count }) => `${beats}.${bars_count} | ${bars}.${beats}.${sixteenths}`;
 
   return (
     <header
@@ -53,6 +116,13 @@ export function Header({ context, embedded = false }) {
             <div className="space-x-2">
               <span className="">strudel</span>
               <span className="text-sm font-medium">REPL</span>
+              <span className="text-sm font-medium">
+                | TIME: {formatTime(currentTime)} | PLAY: {formatDuration(playTime)}
+              </span>
+              <span className="text-sm font-medium">
+                | CPS: {currentCps.toFixed(2)} | CPM: {currentCpm.toFixed(2)} | BPM: {currentCps*240} 
+              </span>
+              <span className="text-sm font-medium">| Position: {formatMusicPosition(musicPosition)}</span>
               {!isEmbedded && isButtonRowHidden && (
                 <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium">
                   DOCS
