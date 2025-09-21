@@ -1,6 +1,7 @@
 import jsdoc from '../../doc.json';
 import { autocompletion } from '@codemirror/autocomplete';
 import { h } from './html';
+import { snippetsAutocomplete } from './snippetsAutocomplete.mjs';
 
 const escapeHtml = (str) => {
   const div = document.createElement('div');
@@ -129,4 +130,4 @@ export const strudelAutocomplete = (context) => {
 };
 
 export const isAutoCompletionEnabled = (enabled) =>
-  enabled ? [autocompletion({ override: [strudelAutocomplete], closeOnBlur: false })] : [];
+  enabled ? [autocompletion({ override: [strudelAutocomplete,snippetsAutocomplete], closeOnBlur: false })] : [];
