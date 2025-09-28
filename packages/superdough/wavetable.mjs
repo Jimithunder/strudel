@@ -251,7 +251,7 @@ export async function onTriggerSynth(t, value, onended, tables, frameLen) {
     return;
   }
   const posADSRParams = [value.wtPosAttack, value.wtPosDecay, value.wtPosSustain, value.wtPosRelease];
-  const warpADSRParams = [value.wtPosAttack, value.wtPosDecay, value.wtPosSustain, value.wtPosRelease];
+  const warpADSRParams = [value.wtWarpAttack, value.wtWarpDecay, value.wtWarpSustain, value.wtWarpRelease];
   const wtParams = source.parameters;
   const positionParam = wtParams.get('position');
   const warpParam = wtParams.get('warp');
@@ -270,7 +270,7 @@ export async function onTriggerSynth(t, value, onended, tables, frameLen) {
     posLFO.connect(positionParam);
   }
   let warpLFO;
-  if (posADSRParams.some((p) => p !== undefined)) {
+  if (warpADSRParams.some((p) => p !== undefined)) {
     const [wAttack, wDecay, wSustain, wRelease] = getADSRValues(warpADSRParams);
     getParamADSR(warpParam, wAttack, wDecay, wSustain, wRelease, 0, 1, t, holdEnd, 'linear');
   } else {
