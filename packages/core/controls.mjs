@@ -119,7 +119,7 @@ export const { wtPosDecay, wtPosDec } = registerControl('wtPosDecay', 'wtPosDec'
 /**
  * Sustain time of the wavetable oscillator's position envelope
  *
- * @name wtPosAttack
+ * @name wtPosSustain
  * @synonyms wtPosSus
  * @param {number | Pattern} gain sustain level (0 to 1)
  */
@@ -215,7 +215,7 @@ export const { wtWarpDecay, wtWarpDec } = registerControl('wtWarpDecay', 'wtWarp
 /**
  * Sustain time of the wavetable oscillator's warp envelope
  *
- * @name wtWarpAttack
+ * @name wtWarpSustain
  * @synonyms wtWarpSus
  * @param {number | Pattern} gain sustain level (0 to 1)
  */
