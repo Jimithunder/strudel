@@ -143,7 +143,7 @@ export const { wtPosRelease, wtPosRel } = registerControl('wtPosRelease', 'wtPos
 export const { wtPosRate } = registerControl('wtPosRate');
 
 /**
- * Depth of the LFO for the wavetable oscillator's position
+ * Depth of the envelope or LFO for the wavetable oscillator's position
  *
  * @name wtPosDepth
  * @param {number | Pattern} depth depth of modulation
@@ -239,7 +239,7 @@ export const { wtWarpRelease, wtWarpRel } = registerControl('wtWarpRelease', 'wt
 export const { wtWarpRate } = registerControl('wtWarpRate');
 
 /**
- * Depth of the LFO for the wavetable oscillator's warp
+ * Depth of the envelope or LFO for the wavetable oscillator's warp
  *
  * @name wtWarpDepth
  * @param {number | Pattern} depth depth of modulation

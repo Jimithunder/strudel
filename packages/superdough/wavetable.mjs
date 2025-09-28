@@ -258,7 +258,7 @@ export async function onTriggerSynth(t, value, onended, tables, frameLen) {
   let posLFO;
   if (posADSRParams.some((p) => p !== undefined)) {
     const [pAttack, pDecay, pSustain, pRelease] = getADSRValues(posADSRParams);
-    getParamADSR(positionParam, pAttack, pDecay, pSustain, pRelease, 0, 1, t, holdEnd, 'linear');
+    getParamADSR(positionParam, pAttack, pDecay, pSustain, pRelease, 0, value.wtPosDepth ?? 1, t, holdEnd, 'linear');
   } else {
     const posLFO = getLfo(ac, t, endWithRelease, {
       frequency: value.wtPosRate,
@@ -272,7 +272,7 @@ export async function onTriggerSynth(t, value, onended, tables, frameLen) {
   let warpLFO;
   if (warpADSRParams.some((p) => p !== undefined)) {
     const [wAttack, wDecay, wSustain, wRelease] = getADSRValues(warpADSRParams);
-    getParamADSR(warpParam, wAttack, wDecay, wSustain, wRelease, 0, 1, t, holdEnd, 'linear');
+    getParamADSR(warpParam, wAttack, wDecay, wSustain, wRelease, 0, value.wtWarpDepth ?? 1, t, holdEnd, 'linear');
   } else {
     const warpLFO = getLfo(ac, t, endWithRelease, {
       frequency: value.wtWarpRate,
@@ -287,7 +287,7 @@ export async function onTriggerSynth(t, value, onended, tables, frameLen) {
   const envGain = ac.createGain();
   const node = source.connect(envGain);
   getParamADSR(node.gain, attack, decay, sustain, release, 0, 1, t, holdEnd, 'linear');
-  getPitchEnvelope(source.detune, value, t, holdEnd);
+  getPitchEnvelope(source.parameters.get('detune'), value, t, holdEnd);
   const handle = { node, source };
   const timeoutNode = webAudioTimeout(
     ac,
