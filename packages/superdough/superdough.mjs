@@ -7,20 +7,22 @@ This program is free software: you can redistribute it and/or modify it under th
 import './feedbackdelay.mjs';
 import './reverb.mjs';
 import './vowel.mjs';
-import { clamp, nanFallback, _mod, cycleToSeconds, secondsToCycle } from './util.mjs';
+import { nanFallback, _mod, cycleToSeconds } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
 import {
   createFilter,
   createFilterAndEnvelope,
-  setupFilterEnvelope,
+  effectSend,
   gainNode,
   getCompressor,
+  getLfo,
   getWorklet,
-  webAudioTimeout,
+  setupFilterEnvelope,
 } from './helpers.mjs';
 import { map } from 'nanostores';
-import { logger, errorLogger } from './logger.mjs';
+import { logger } from './logger.mjs';
 import { loadBuffer } from './sampler.mjs';
+import { SuperdoughAudioController } from './superdoughoutput.mjs';
 
 export const DEFAULT_MAX_POLYPHONY = 128;
 const DEFAULT_AUDIO_DEVICE_NAME = 'System Standard';
@@ -34,13 +36,6 @@ export function setMaxPolyphony(polyphony) {
 let multiChannelOrbits = false;
 export function setMultiChannelOrbits(bool) {
   multiChannelOrbits = bool == true;
-}
-
-function getModulationShapeInput(val) {
-  if (typeof val === 'number') {
-    return val % 5;
-  }
-  return { tri: 0, triangle: 0, sine: 1, ramp: 2, saw: 3, square: 4 }[val] ?? 0;
 }
 
 export const soundMap = map();
@@ -119,6 +114,19 @@ export async function aliasBank(...args) {
     default:
       throw new Error('aliasMap expects 1 or 2 arguments, received ' + args.length);
   }
+}
+
+/**
+ * Register an alias for a sound.
+ * @param {string} original - The original sound name
+ * @param {string} alias - The alias to use for the sound
+ */
+export function soundAlias(original, alias) {
+  if (getSound(original) == null) {
+    logger('soundAlias: original sound not found');
+    return;
+  }
+  soundMap.setKey(alias, getSound(original));
 }
 
 export function getSound(s) {
@@ -204,7 +212,7 @@ export const resetLoadedSounds = () => soundMap.set({});
 let audioContext;
 
 export const setDefaultAudioContext = () => {
-  audioContext = new AudioContext();
+  audioContext = new AudioContext({ latencyHint: 'playback' });
   return audioContext;
 };
 
@@ -220,11 +228,17 @@ export function getAudioContextCurrentTime() {
   return getAudioContext().currentTime;
 }
 
+let externalWorklets = [];
+export function registerWorklet(url) {
+  externalWorklets.push(url);
+}
+
 let workletsLoading;
 function loadWorklets() {
   if (!workletsLoading) {
     const audioCtx = getAudioContext();
-    workletsLoading = audioCtx.audioWorklet.addModule(workletsUrl);
+    const allWorkletURLs = externalWorklets.concat([workletsUrl]);
+    workletsLoading = Promise.all(allWorkletURLs.map((workletURL) => audioCtx.audioWorklet.addModule(workletURL)));
   }
 
   return workletsLoading;
@@ -276,6 +290,7 @@ export async function initAudio(options = {}) {
   }
   logger('[superdough] ready');
 }
+
 let audioReady;
 export async function initAudioOnFirstClick(options) {
   if (!audioReady) {
@@ -290,153 +305,17 @@ export async function initAudioOnFirstClick(options) {
   return audioReady;
 }
 
-const maxfeedback = 0.98;
-
-let channelMerger, destinationGain;
-//update the output channel configuration to match user's audio device
-export function initializeAudioOutput() {
-  const audioContext = getAudioContext();
-  const maxChannelCount = audioContext.destination.maxChannelCount;
-  audioContext.destination.channelCount = maxChannelCount;
-  channelMerger = new ChannelMergerNode(audioContext, { numberOfInputs: audioContext.destination.channelCount });
-  destinationGain = new GainNode(audioContext);
-  channelMerger.connect(destinationGain);
-  destinationGain.connect(audioContext.destination);
+let controller;
+function getSuperdoughAudioController() {
+  if (controller == null) {
+    controller = new SuperdoughAudioController(getAudioContext());
+  }
+  return controller;
 }
 
-// input: AudioNode, channels: ?Array<int>
-export const connectToDestination = (input, channels = [0, 1]) => {
-  const ctx = getAudioContext();
-  if (channelMerger == null) {
-    initializeAudioOutput();
-  }
-  //This upmix can be removed if correct channel counts are set throughout the app,
-  // and then strudel could theoretically support surround sound audio files
-  const stereoMix = new StereoPannerNode(ctx);
-  input.connect(stereoMix);
-
-  const splitter = new ChannelSplitterNode(ctx, {
-    numberOfOutputs: stereoMix.channelCount,
-  });
-  stereoMix.connect(splitter);
-  channels.forEach((ch, i) => {
-    splitter.connect(channelMerger, i % stereoMix.channelCount, ch % ctx.destination.channelCount);
-  });
-};
-
-export const panic = () => {
-  if (destinationGain == null) {
-    return;
-  }
-  destinationGain.gain.linearRampToValueAtTime(0, getAudioContext().currentTime + 0.01);
-  destinationGain = null;
-  channelMerger == null;
-};
-
-function getDelay(orbit, delaytime, delayfeedback, t) {
-  if (delayfeedback > maxfeedback) {
-    //logger(`delayfeedback was clamped to ${maxfeedback} to save your ears`);
-  }
-  delayfeedback = clamp(delayfeedback, 0, maxfeedback);
-  if (!orbits[orbit].delayNode) {
-    const ac = getAudioContext();
-    const dly = ac.createFeedbackDelay(1, delaytime, delayfeedback);
-    dly.start?.(t); // for some reason, this throws when audion extension is installed..
-    connectToOrbit(dly, orbit);
-    orbits[orbit].delayNode = dly;
-  }
-  orbits[orbit].delayNode.delayTime.value !== delaytime &&
-    orbits[orbit].delayNode.delayTime.setValueAtTime(delaytime, t);
-  orbits[orbit].delayNode.feedback.value !== delayfeedback &&
-    orbits[orbit].delayNode.feedback.setValueAtTime(delayfeedback, t);
-  return orbits[orbit].delayNode;
-}
-
-function scheduleParams(node, params, t, glideMs = 5) {
-  const ac = getAudioContext();
-  const now = ac.currentTime;
-  const T = Math.max(t ?? now, now);
-
-  for (const [name, value] of Object.entries(params)) {
-    const p = node.parameters?.get(name);
-    if (!p) continue;
-    const newValue = value ?? p.defaultValue;
-    if (newValue === undefined) continue;
-    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(T);
-    else p.cancelScheduledValues(T);
-
-    if (glideMs > 0) {
-      // anchor at current value then ramp
-      p.setValueAtTime(p.value ?? p.defaultValue ?? 0, T);
-      p.linearRampToValueAtTime(newValue, T + glideMs / 1000);
-    } else {
-      p.setValueAtTime(newValue, T);
-    }
-  }
-}
-
-const sFiltModes = Object.freeze({
-  COMB: 0,
-  FLANGE: 1,
-  ALLPASS: 2,
-  ALLPASS2: 3,
-});
-const sFiltKeys = Object.keys(sFiltModes);
-
-// Special filters
-function getSFilt(orbit, params, start, end, channels) {
-  let sFilt = orbits[orbit].sFilt;
-
-  // Extract some params we need for envelopes
-  const { frequency, att, dec, sus, rel, mode, fenv, ...filteredParams } = params;
-  filteredParams.frequency = frequency;
-  if (typeof mode === 'string') {
-    const modeUpper = mode.toUpperCase();
-    if (sFiltKeys.includes(modeUpper)) {
-      filteredParams.mode = sFiltModes[mode.toUpperCase()];
-    } else {
-      logger(
-        `[superdough] Special filter mode ${modeUpper} not found. Available options are ${sFiltKeys.join(', ')}. Falling back to COMB.`,
-      );
-      filteredParams.mode = sFiltModes.COMB;
-    }
-  } else {
-    filteredParams.mode = mode;
-  }
-
-  if (!sFilt) {
-    sFilt = getWorklet(getAudioContext(), 'special-filter-processor', filteredParams, {
-      outputChannelCount: [2],
-      channelCountMode: 'explicit',
-    });
-    connectToDestination(sFilt, channels);
-    orbits[orbit].sFilt = sFilt;
-  }
-  scheduleParams(sFilt, filteredParams, start, 0);
-  setupFilterEnvelope(sFilt, frequency, att, dec, sus, rel, fenv, start, end);
-  return sFilt;
-}
-
-export function getLfo(audioContext, begin, end, properties = {}) {
-  const { shape = 0, ...props } = properties;
-  const { dcoffset = -0.5, depth = 1 } = properties;
-  const lfoprops = {
-    frequency: 1,
-    depth,
-    skew: 0.5,
-    phaseoffset: 0,
-    time: begin,
-    begin,
-    end,
-    shape: getModulationShapeInput(shape),
-    dcoffset,
-    min: dcoffset * depth,
-    max: dcoffset * depth + depth,
-    curve: 1,
-    ...props,
-  };
-
-  return getWorklet(audioContext, 'lfo-processor', lfoprops);
+export function connectToDestination(input, channels) {
+  const controller = getSuperdoughAudioController();
+  controller.output.connectToDestination(input, channels);
 }
 
 function getPhaser(time, end, frequency = 1, depth = 0.5, centerFrequency = 1000, sweep = 2000) {
@@ -468,78 +347,6 @@ function getFilterType(ftype) {
   ftype = ftype ?? 0;
   const filterTypes = ['12db', 'ladder', '24db'];
   return typeof ftype === 'number' ? filterTypes[Math.floor(_mod(ftype, filterTypes.length))] : ftype;
-}
-
-//type orbit {
-// gain: number,
-// reverbNode: reverbNode
-// delayNode: delayNode
-//}
-let orbits = {};
-function connectToOrbit(node, orbit) {
-  if (orbits[orbit] == null) {
-    errorLogger(new Error('target orbit does not exist'), 'superdough');
-  }
-  node.connect(orbits[orbit].gain);
-}
-
-function setOrbit(audioContext, orbit, channels) {
-  if (orbits[orbit] == null) {
-    orbits[orbit] = {
-      gain: new GainNode(audioContext, { gain: 1 }),
-    };
-    connectToDestination(orbits[orbit].gain, channels);
-  }
-}
-function duckOrbit(audioContext, targetOrbit, t, attacktime = 0.1, duckdepth = 1) {
-  const targetArr = [targetOrbit].flat();
-
-  targetArr.forEach((target) => {
-    if (orbits[target] == null) {
-      errorLogger(new Error(`duck target orbit ${target} does not exist`), 'superdough');
-      return;
-    }
-    webAudioTimeout(
-      audioContext,
-      () => {
-        orbits[target].gain.gain.cancelScheduledValues(t);
-        const currVal = orbits[target].gain.gain.value;
-        orbits[target].gain.gain.linearRampToValueAtTime(clamp(1 - Math.pow(duckdepth, 0.5), 0.01, currVal), t);
-        orbits[target].gain.gain.exponentialRampToValueAtTime(1, t + Math.max(0.002, attacktime));
-      },
-      0,
-      t - 0.01,
-    );
-  });
-}
-
-let hasChanged = (now, before) => now !== undefined && now !== before;
-function getReverb(orbit, duration, fade, lp, dim, ir, irspeed, irbegin) {
-  // If no reverb has been created for a given orbit, create one
-  if (!orbits[orbit].reverbNode) {
-    const ac = getAudioContext();
-    const reverb = ac.createReverb(duration, fade, lp, dim, ir, irspeed, irbegin);
-    connectToOrbit(reverb, orbit);
-    orbits[orbit].reverbNode = reverb;
-  }
-
-  if (
-    hasChanged(duration, orbits[orbit].reverbNode.duration) ||
-    hasChanged(fade, orbits[orbit].reverbNode.fade) ||
-    hasChanged(lp, orbits[orbit].reverbNode.lp) ||
-    hasChanged(dim, orbits[orbit].reverbNode.dim) ||
-    hasChanged(irspeed, orbits[orbit].reverbNode.irspeed) ||
-    hasChanged(irbegin, orbits[orbit].reverbNode.irbegin) ||
-    orbits[orbit].reverbNode.ir !== ir
-  ) {
-    // only regenerate when something has changed
-    // avoids endless regeneration on things like
-    // stack(s("a"), s("b").rsize(8)).room(.5)
-    // this only works when args may stay undefined until here
-    // setting default values breaks this
-    orbits[orbit].reverbNode.generate(duration, fade, lp, dim, ir, irspeed, irbegin);
-  }
-  return orbits[orbit].reverbNode;
 }
 
 export let analysers = {},
@@ -574,15 +381,8 @@ export function getAnalyzerData(type = 'time', id = 1) {
   return analysersData[id];
 }
 
-function effectSend(input, effect, wet) {
-  const send = gainNode(wet);
-  input.connect(send);
-  send.connect(effect);
-  return send;
-}
-
 export function resetGlobalEffects() {
-  orbits = {};
+  controller?.reset();
   analysers = {};
   analysersData = {};
 }
@@ -597,6 +397,7 @@ function mapChannelNumbers(channels) {
 export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) => {
   // new: t is always expected to be the absolute target onset time
   const ac = getAudioContext();
+  const audioController = getSuperdoughAudioController();
 
   let { stretch } = value;
   if (stretch != null) {
@@ -636,8 +437,10 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     postgain = getDefaultValue('postgain'),
     density = getDefaultValue('density'),
     duckorbit,
+    duckonset,
     duckattack,
     duckdepth,
+    djf,
     // filters
     fanchor = getDefaultValue('fanchor'),
     drive = 0.69,
@@ -733,10 +536,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   );
 
   const channels = value.channels != null ? mapChannelNumbers(value.channels) : orbitChannels;
-  setOrbit(ac, orbit, channels, t, cycle, cps);
-
+  const orbitBus = audioController.getOrbit(orbit, channels);
   if (duckorbit != null) {
-    duckOrbit(ac, duckorbit, t, duckattack, duckdepth);
+    audioController.duck(duckorbit, t, duckonset, duckattack, duckdepth);
   }
 
   gain = applyGainCurve(nanFallback(gain, 1));
@@ -783,7 +585,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       audioNodes.forEach((n) => n?.disconnect());
       activeSoundSources.delete(chainID);
     };
-    const soundHandle = await onTrigger(t, value, onEnded);
+    const soundHandle = await onTrigger(t, value, onEnded, cps);
 
     if (soundHandle) {
       sourceNode = soundHandle.node;
@@ -894,6 +696,14 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     tremolo = cps * tremolosync;
   }
 
+  if (value.wtPosSynced != null) {
+    value.wtPosRate /= cps;
+  }
+
+  if (value.wtWarpSynced != null) {
+    value.wtWarpRate /= cps;
+  }
+
   if (tremolo !== undefined) {
     // Allow clipping of modulator for more dynamic possiblities, and to prevent speaker overload
     // EX:  a triangle waveform will clip like this /-\ when the depth is above 1
@@ -960,7 +770,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       rel: sfrelease,
       fenv: sfenv,
     };
-    const preSFiltNode = getSFilt(orbit, sFiltParams, t, end, orbitChannels);
+    const preSFiltNode = orbitBus.getSFilt(sFiltParams, t, end);
     sFiltNode = gainNode(postgain);
     preSFiltNode.connect(sFiltNode);
     const sFiltSend = effectSend(post, preSFiltNode, sf);
@@ -975,9 +785,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   // delay
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {
-    const delayNode = getDelay(orbit, delaytime, delayfeedback, t);
-    const delaySend = effectSend(sFiltNode, delayNode, delay);
-    audioNodes.push(delaySend);
+    orbitBus.getDelay(delaytime, delayfeedback, t);
+    orbitBus.sendDelay(sFiltNode, delay);
   }
 
   // reverb
@@ -993,25 +802,27 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       }
       roomIR = await loadBuffer(url, ac, ir, 0);
     }
-    const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, irspeed, irbegin);
-    const reverbSend = effectSend(sFiltNode, reverbNode, room);
-    audioNodes.push(reverbSend);
+    orbitBus.getReverb(roomsize, roomfade, roomlp, roomdim, roomIR, irspeed, irbegin);
+    orbitBus.sendReverb(sFiltNode, room);
+  }
+
+  if (djf != null) {
+    orbitBus.getDjf(djf, t);
   }
 
   // analyser
-  let analyserSend;
   if (analyze) {
     const analyserNode = getAnalyserById(analyze, 2 ** (fft + 5));
-    analyserSend = effectSend(post, analyserNode, 1);
+    const analyserSend = effectSend(post, analyserNode, 1);
     audioNodes.push(analyserSend);
   }
   if (dry != null) {
     dry = applyGainCurve(dry);
     const dryGain = new GainNode(ac, { gain: dry });
     chain.push(dryGain);
-    connectToOrbit(dryGain, orbit);
+    orbitBus.connectToOutput(dryGain);
   } else {
-    connectToOrbit(post, orbit);
+    orbitBus.connectToOutput(post);
   }
 
   // connect chain elements together
