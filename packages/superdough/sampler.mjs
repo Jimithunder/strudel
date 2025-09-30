@@ -1,6 +1,6 @@
-import { noteToMidi, valueToMidi, getSoundIndex, getCommonSampleInfo } from './util.mjs';
+import { getCommonSampleInfo } from './util.mjs';
 import { getAudioContext, registerSound, registerWaveTable } from './index.mjs';
-import { getADSRValues, getParamADSR, getPitchEnvelope, getVibratoOscillator } from './helpers.mjs';
+import { getADSRValues, applyFM, getParamADSR, getPitchEnvelope, getVibratoOscillator } from './helpers.mjs';
 import { logger } from './logger.mjs';
 
 const bufferCache = {}; // string: Promise<ArrayBuffer>
@@ -290,10 +290,6 @@ export async function onTriggerSample(t, value, onended, bank, resolveUrl) {
     logger(`[sampler] could not load "${s}:${n}"`, 'error');
     return;
   }
-
-  // vibrato
-  let vibratoOscillator = getVibratoOscillator(bufferSource.detune, value, t);
-
   const time = t + nudge;
   bufferSource.start(time, offset);
 
@@ -307,25 +303,35 @@ export async function onTriggerSample(t, value, onended, bank, resolveUrl) {
   let holdEnd = t + duration;
 
   getParamADSR(node.gain, attack, decay, sustain, release, 0, 1, t, holdEnd, 'linear');
-
-  // pitch envelope
   getPitchEnvelope(bufferSource.detune, value, t, holdEnd);
+  const { stop: vibStop } = getVibratoOscillator(bufferSource.detune, value, t);
+  const { stop: fmStop } = applyFM(bufferSource.playbackRate, value, t, true);
 
   const out = ac.createGain(); // we need a separate gain for the cutgroups because firefox...
   node.connect(out);
-  bufferSource.onended = function () {
-    bufferSource.disconnect();
-    vibratoOscillator?.stop();
-    node.disconnect();
-    out.disconnect();
-    onended();
-  };
-  let envEnd = holdEnd + release + 0.01;
-  bufferSource.stop(envEnd);
-  const stop = (endTime) => {
-    bufferSource.stop(endTime);
-  };
-  const handle = { node: out, bufferSource, stop };
+
+  const envEnd = holdEnd + release + 0.01;
+  const timeoutNode = webAudioTimeout(
+    ac,
+    () => {
+      debugger;
+      bufferSource.stop(ac.currentTime);
+      bufferSource.disconnect();
+      vibStop(ac.currentTime);
+      fmStop(ac.currentTime);
+      node.disconnect();
+      out.disconnect();
+      onended();
+    },
+    t,
+    envEnd,
+  );
+  const handle = {
+    node,
+    stop: (time) => {
+      timeoutNode.stop(time);
+    },
+  }
 
   // cut groups
   if (cut !== undefined) {

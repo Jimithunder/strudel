@@ -297,8 +297,14 @@ export function getVibratoOscillator(param, value, t) {
     vibratoOscillator.connect(gain);
     gain.connect(param);
     vibratoOscillator.start(t);
-    return vibratoOscillator;
+    const stop = (t) => {
+      vibratoOscillator.stop(t);
+      // vibratoOscillator.disconnect();
+      // gain.disconnect();
+    }
+    return { modulator: gain, stop };
   }
+  return { stop: () => {} };
 }
 // ConstantSource inherits AudioScheduledSourceNode, which has scheduling abilities
 // a bit of a hack, but it works very well :)
@@ -331,30 +337,37 @@ export function webAudioTimeout(audioContext, onComplete, startTime, stopTime) {
   return constantNode;
 }
 const mod = (freq, range = 1, type = 'sine') => {
-  const ctx = getAudioContext();
+  const ac = getAudioContext();
   let osc;
   if (noises.includes(type)) {
-    osc = ctx.createBufferSource();
+    osc = ac.createBufferSource();
     osc.buffer = getNoiseBuffer(type, 2);
     osc.loop = true;
   } else {
-    osc = ctx.createOscillator();
+    osc = ac.createOscillator();
     osc.type = type;
     osc.frequency.value = freq;
   }
 
   osc.start();
-  const g = new GainNode(ctx, { gain: range });
-  osc.connect(g); // -range, range
-  return { node: g, stop: (t) => osc.stop(t) };
+  const gain = new GainNode(ac, { gain: range });
+  osc.connect(gain); // -range, range
+  return { node: gain, stop: (t) => osc.stop(t) };
+  // const stop = (t) => {
+  //   osc.stop(t);
+  //   // osc.disconnect();
+  //   // gain.disconnect();
+  // }
+  // return { modulator: gain, stop };
 };
-const fm = (frequencyparam, harmonicityRatio, modulationIndex, wave = 'sine') => {
-  const carrfreq = frequencyparam.value;
-  const modfreq = carrfreq * harmonicityRatio;
+
+const fm = (carrFreq, harmonicityRatio, modulationIndex, wave = 'sine', normalized = false) => {
+  const modfreq = carrFreq * harmonicityRatio;
   const modgain = modfreq * modulationIndex;
-  return mod(modfreq, modgain, wave);
+  return mod(modfreq, normalized ? modgain : modgain / modfreq, wave);
 };
-export function applyFM(param, value, begin) {
+
+export function applyFM(param, value, begin, normalized = false) {
   const {
     fmh: fmHarmonicity = 1,
     fmi: fmModulationIndex,
@@ -367,16 +380,17 @@ export function applyFM(param, value, begin) {
     fmwave: fmWaveform = 'sine',
     duration,
   } = value;
-  let modulator;
-  let stop = () => {};
-
+  let innerStop;
+  let envGain;
   if (fmModulationIndex) {
     const ac = getAudioContext();
-    const envGain = ac.createGain();
-    const fmmod = fm(param, fmHarmonicity, fmModulationIndex, fmWaveform);
-
-    modulator = fmmod.node;
-    stop = fmmod.stop;
+    envGain = ac.createGain();
+    const carrFreq = param.value || getFrequencyFromValue(value);
+    const fmObj = fm(carrFreq, fmHarmonicity, fmModulationIndex, fmWaveform, normalized);
+    const modulator = fmObj.node;
+    debugger;
+    // const modulator = fmObj.modulator;
+    innerStop = fmObj.stop;
     if (![fmAttack, fmDecay, fmSustain, fmRelease, fmVelocity].some((v) => v !== undefined)) {
       // no envelope by default
       modulator.connect(param);
@@ -399,7 +413,11 @@ export function applyFM(param, value, begin) {
       envGain.connect(param);
     }
   }
-  return { stop };
+  const stop = () => {
+    innerStop?.();
+    // envGain?.disconnect();
+  }
+  return { modulator: envGain, stop };
 }
 
 export const getFrequencyFromValue = (value, defaultNote = 36) => {

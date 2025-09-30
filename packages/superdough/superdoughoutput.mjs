@@ -1,5 +1,5 @@
-import { effectSend, getWorklet, scheduleParams, webAudioTimeout } from './helpers.mjs';
-import { errorLogger } from './logger.mjs';
+import { effectSend, getWorklet, scheduleParams, setupFilterEnvelope, webAudioTimeout } from './helpers.mjs';
+import { errorLogger, logger } from './logger.mjs';
 import { clamp } from './util.mjs';
 
 let hasChanged = (now, before) => now !== undefined && now !== before;
@@ -118,7 +118,7 @@ export class Orbit {
       t - 0.01,
     );
   }
-  
+
   // Special filters
   getSFilt(params, start, end) {
     // Extract some params we need for envelopes
@@ -137,13 +137,13 @@ export class Orbit {
     } else {
       filteredParams.mode = mode;
     }
-  
+
     if (!this.sFiltNode) {
-      this.sFiltNode = getWorklet(getAudioContext(), 'special-filter-processor', filteredParams, {
+      this.sFiltNode = getWorklet(this.audioContext, 'special-filter-processor', filteredParams, {
         outputChannelCount: [2],
         channelCountMode: 'explicit',
       });
-      connectToDestination(this.sFiltNode, channels);
+      this.sFiltNode.connect(this.summingNode);
     }
     scheduleParams(this.sFiltNode, filteredParams, start, 0);
     setupFilterEnvelope(this.sFiltNode, frequency, att, dec, sus, rel, fenv, start, end);

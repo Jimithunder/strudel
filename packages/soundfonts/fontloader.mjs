@@ -143,7 +143,7 @@ export function registerSoundfonts() {
   Object.entries(gm).forEach(([name, fonts]) => {
     registerSound(
       name,
-      async (time, value, onended) => {
+      async (t, value, onended) => {
         const [attack, decay, sustain, release] = getADSRValues([
           value.attack,
           value.decay,
@@ -154,29 +154,36 @@ export function registerSoundfonts() {
         const { duration } = value;
         const n = getSoundIndex(value.n, fonts.length);
         const font = fonts[n];
-        const ctx = getAudioContext();
-        const bufferSource = await getFontBufferSource(font, value, ctx);
-        bufferSource.start(time);
-        const envGain = ctx.createGain();
+        const ac = getAudioContext();
+        const bufferSource = await getFontBufferSource(font, value, ac);
+        bufferSource.start(t);
+        const envGain = ac.createGain();
         const node = bufferSource.connect(envGain);
-        const holdEnd = time + duration;
-        getParamADSR(node.gain, attack, decay, sustain, release, 0, 0.3, time, holdEnd, 'linear');
-        let envEnd = holdEnd + release + 0.01;
-
-        // vibrato
-        let vibratoOscillator = getVibratoOscillator(bufferSource.detune, value, time);
-        // pitch envelope
-        getPitchEnvelope(bufferSource.detune, value, time, holdEnd);
-
-        bufferSource.stop(envEnd);
-        const stop = (releaseTime) => {};
-        bufferSource.onended = () => {
-          bufferSource.disconnect();
-          vibratoOscillator?.stop();
-          node.disconnect();
-          onended();
+        const holdEnd = t + duration;
+        getParamADSR(node.gain, attack, decay, sustain, release, 0, 0.3, t, holdEnd, 'linear');
+        const envEnd = holdEnd + release + 0.01;
+        const { stop: vibStop } = getVibratoOscillator(bufferSource.detune, value, t);
+        const { stop: fmStop } = applyFM(bufferSource.detune, value, t);
+        getPitchEnvelope(bufferSource.detune, value, t, holdEnd);
+        const timeoutNode = webAudioTimeout(
+          ac,
+          () => {
+            bufferSource.stop(ac.currentTime);
+            bufferSource.disconnect();
+            vibStop(ac.currentTime);
+            fmStop(ac.currentTime);
+            node.disconnect();
+            onended();
+          },
+          t,
+          envEnd,
+        );
+        return {
+          node,
+          stop: (time) => {
+            timeoutNode.stop(time);
+          },
         };
-        return { node, stop };
       },
       { type: 'soundfont', prebake: true, fonts },
     );
