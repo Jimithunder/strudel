@@ -161,7 +161,7 @@ export function registerSynthSounds() {
         value.release,
       ]);
       const end = holdend + release + 0.01;
-      const combDur = 1.5 * (duration + release);
+      const combDur = 4 * (duration + release);
       const q = 10 ** (-3 / (combDur * frequency)); // RT60 for comb feedback at `frequency`
       const comb = getWorklet(
         ac,
@@ -169,7 +169,6 @@ export function registerSynthSounds() {
         {
           frequency,
           q,
-          stereo: 1,
           mode: 0, // comb
         },
         {
@@ -207,16 +206,15 @@ export function registerSynthSounds() {
       const { modulator: fmMod, stop: fmStop } = applyFM(combFreq, value, t);
       fmMod?.connect(dispFreq);
       const noiseGain = gainNode(0);
-      noiseGain.gain.setValueAtTime(0.2, t);
+      noiseGain.gain.setValueAtTime(1, t);
       noiseGain.gain.linearRampToValueAtTime(0, t + 0.05);
-      const envGain = gainNode(1);
+      const envGain = gainNode(0);
       const node = o.node.connect(noiseGain).connect(comb).connect(disperser).connect(envGain);
-      getParamADSR(node.gain, attack, decay, sustain, release, 0, 1, t, holdend, 'linear');
+      getParamADSR(node.gain, attack, decay, sustain, release, 0, 0.3, t, holdend, 'linear');
       o.stop(holdend);
       const timeoutNode = webAudioTimeout(
         ac,
         () => {
-          o.node.disconnect();
           destroyAudioWorkletNode(comb);
           destroyAudioWorkletNode(disperser);
           envGain.disconnect();

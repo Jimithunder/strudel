@@ -426,10 +426,10 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       { name: 'frequency', defaultValue: 440, minValue: 8, maxValue: 22050 },
-      { name: 'q', defaultValue: 0.5, minValue: 0, maxValue: 0.999 },
-      { name: 'damp', defaultValue: 0, minValue: 0, maxValue: 0.9999 },
+      { name: 'q', defaultValue: 0.5, minValue: 0, maxValue: 1 },
+      { name: 'damp', defaultValue: 0, minValue: 0, maxValue: 1 },
       { name: 'drive', defaultValue: 0, minValue: -24, maxValue: 24 }, // db
-      { name: 'polarity', defaultValue: 1.0, minValue: -1, maxValue: 1 },
+      { name: 'polarity', defaultValue: 1, minValue: -1, maxValue: 1 },
       { name: 'mix', defaultValue: 0.5, minValue: 0, maxValue: 1 },
       { name: 'stages', defaultValue: 1, minValue: 1 },
       { name: 'spread', defaultValue: 10, minValue: 0 },
@@ -438,12 +438,13 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       { name: 'depth', defaultValue: 0 },
       { name: 'seriality', defaultValue: 1, minValue: 0, maxValue: 1 },
       { name: 'mode', defaultValue: 0 },
+      { name: 'end', defaultValue: -1 },
     ];
   }
 
   constructor() {
     super();
-    this.maxDelaySec = 1;
+    this.maxDelaySec = 20;
     const rawLen = Math.ceil(this.maxDelaySec * sampleRate);
     this.buffLen = 1 << Math.ceil(Math.log2(rawLen + 4));
     this.mask = this.buffLen - 1; // power of 2 buffer and masking for faster wrapping
@@ -454,6 +455,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     this.initialized = false;
     this.phase = 0;
     this.dPhase = (2 * Math.PI) / sampleRate;
+    this.stopped = false;
   }
 
   interp(buff, x) {
@@ -478,6 +480,11 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs, parameters) {
+    let endTime = parameters.end[0];
+    endTime = (endTime < 0) ? Number.POSITIVE_INFINITY : endTime;
+    if (currentTime >= endTime) {
+      return false;
+    }
     const input = inputs[0];
     const output = outputs[0];
     const numChannels = output.length;
