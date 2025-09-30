@@ -1,11 +1,13 @@
 import { noteToMidi, freqToMidi, getSoundIndex } from '@strudel/core';
 import {
-  getAudioContext,
-  registerSound,
-  getParamADSR,
+  applyFM,
   getADSRValues,
+  getAudioContext,
+  getParamADSR,
   getPitchEnvelope,
   getVibratoOscillator,
+  registerSound,
+  webAudioTimeout,
 } from '@strudel/webaudio';
 import gm from './gm.mjs';
 

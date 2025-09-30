@@ -154,12 +154,21 @@ export function registerSynthSounds() {
       const frequency = getFrequencyFromValue(value);
       const ac = getAudioContext();
       const o = getNoiseOscillator('white', t, 2);
+      const [attack, decay, sustain, release] = getADSRValues([
+        value.attack,
+        value.decay,
+        value.sustain,
+        value.release,
+      ]);
+      const end = holdend + release + 0.01;
+      const combDur = 1.5 * (duration + release);
+      const q = 10 ** (-3 / (combDur * frequency)); // RT60 for comb feedback at `frequency`
       const comb = getWorklet(
         ac,
         'special-filter-processor',
         {
           frequency,
-          q: 0.999,
+          q,
           stereo: 1,
           mode: 0, // comb
         },
@@ -194,16 +203,15 @@ export function registerSynthSounds() {
       getPitchEnvelope(dispFreq, value, t, holdend);
       const { modulator: vibMod, stop: vibStop } = getVibratoOscillator(combFreq, value, t);
       vibMod?.connect(dispFreq);
-      const { modulator: fmMod, stop: fmStop } = applyFM(combFreq, value, begin);
+      value.fmh = value.fmh !== undefined ? value.fmh / 8 : 0.125;
+      const { modulator: fmMod, stop: fmStop } = applyFM(combFreq, value, t);
       fmMod?.connect(dispFreq);
       const noiseGain = gainNode(0);
       noiseGain.gain.setValueAtTime(0.2, t);
       noiseGain.gain.linearRampToValueAtTime(0, t + 0.05);
       const envGain = gainNode(1);
       const node = o.node.connect(noiseGain).connect(comb).connect(disperser).connect(envGain);
-      const [attack, decay, sustain, release] = getADSRValues([value.attack, value.decay, value.sustain, value.release]);
       getParamADSR(node.gain, attack, decay, sustain, release, 0, 1, t, holdend, 'linear');
-      const end = holdend + release + 0.01;
       o.stop(holdend);
       const timeoutNode = webAudioTimeout(
         ac,
@@ -279,7 +287,6 @@ export function registerSynthSounds() {
           destroyAudioWorkletNode(o);
           envGain.disconnect();
           onended();
-          gain.disconnect();
           vibStop(ac.currentTime);
           fmStop(ac.currentTime);
         },
@@ -433,7 +440,6 @@ export function registerSynthSounds() {
           destroyAudioWorkletNode(lfo);
           envGain.disconnect();
           onended();
-          gain.disconnect();
           vibStop(ac.currentTime);
           fmStop(ac.currentTime);
         },
@@ -549,7 +555,6 @@ export function getOscillator(s, t, value) {
   const { stop: vibStop } = getVibratoOscillator(o.detune, value, t);
   const { stop: fmStop } = applyFM(o.frequency, value, t);
   getPitchEnvelope(o.detune, value, t, t + duration);
-  debugger;
 
   let noiseMix;
   if (noise) {

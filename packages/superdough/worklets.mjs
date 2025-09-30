@@ -437,15 +437,13 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       { name: 'rate', defaultValue: 0.001 },
       { name: 'depth', defaultValue: 0 },
       { name: 'seriality', defaultValue: 1, minValue: 0, maxValue: 1 },
-      { name: 'position', defaultValue: 0.2, minValue: 0, maxValue: 0.99 },
-      { name: 'positionMix', defaultValue: 0, minValue: 0, maxValue: 1 },
       { name: 'mode', defaultValue: 0 },
     ];
   }
 
   constructor() {
     super();
-    this.maxDelaySec = 2; // 0.1?
+    this.maxDelaySec = 1;
     const rawLen = Math.ceil(this.maxDelaySec * sampleRate);
     this.buffLen = 1 << Math.ceil(Math.log2(rawLen + 4));
     this.mask = this.buffLen - 1; // power of 2 buffer and masking for faster wrapping
@@ -522,10 +520,6 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       const rate = pv(parameters.rate, n);
       const depth = pv(parameters.depth, n);
       const seriality = pv(parameters.seriality, n);
-      const position = pv(parameters.position, n);
-      const positionMix = pv(parameters.positionMix, n);
-      const dtScale = lerp(1, 0.05 + 0.9 * position, positionMix);
-      const fbScale = lerp(1, 0.8 * (1 - position), positionMix);
       for (let ch = 0; ch < numChannels; ch++) {
         const x = input[ch]?.[n] ?? 0;
         let y = x;
@@ -541,7 +535,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           const xBuff = this.xBuffers[ch][s];
           let yp;
           if (mode <= 2) {
-            const dtBase = (sampleRate * dtScale) / hzTot;
+            const dtBase = sampleRate / hzTot;
             const dt = dtBase + stereoDt;
             const readPos = this.writeIndex - dt;
             const xDelayed = this.interp(xBuff, readPos);
@@ -551,15 +545,12 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
             const lpPrev = this.lpState[ch][s];
             const lpNow = (1 - damp) * delayed + damp * lpPrev;
             this.lpState[ch][s] = lpNow;
-
-            const g = polarity * fb * fbScale;
-            const a = 1 / (1 + g * g); // normalization constant
             if (mode === 0) {
               // Comb
-              yp = a * y + g * lpNow;
+              yp = y + polarity * fb * lpNow;
             } else if (mode === 1) {
               // Flange
-              yp = a * y + g * xDelayed;
+              yp = y + polarity * fb * xDelayed;
             } else {
               // Allpass
               yp = -fb * y + xDelayed + fb * delayed;

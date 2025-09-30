@@ -299,9 +299,9 @@ export function getVibratoOscillator(param, value, t) {
     vibratoOscillator.start(t);
     const stop = (t) => {
       vibratoOscillator.stop(t);
-      // vibratoOscillator.disconnect();
-      // gain.disconnect();
-    }
+      vibratoOscillator.disconnect();
+      gain.disconnect();
+    };
     return { modulator: gain, stop };
   }
   return { stop: () => {} };
@@ -352,22 +352,21 @@ const mod = (freq, range = 1, type = 'sine') => {
   osc.start();
   const gain = new GainNode(ac, { gain: range });
   osc.connect(gain); // -range, range
-  return { node: gain, stop: (t) => osc.stop(t) };
-  // const stop = (t) => {
-  //   osc.stop(t);
-  //   // osc.disconnect();
-  //   // gain.disconnect();
-  // }
-  // return { modulator: gain, stop };
+  const stop = (t) => {
+    osc.stop(t);
+    gain.disconnect();
+    osc.disconnect();
+  };
+  return { modulator: gain, stop };
 };
 
-const fm = (carrFreq, harmonicityRatio, modulationIndex, wave = 'sine', normalized = false) => {
+const fm = (carrFreq, harmonicityRatio, modulationIndex, wave = 'sine') => {
   const modfreq = carrFreq * harmonicityRatio;
   const modgain = modfreq * modulationIndex;
-  return mod(modfreq, normalized ? modgain : modgain / modfreq, wave);
+  return mod(modfreq, modgain, wave);
 };
 
-export function applyFM(param, value, begin, normalized = false) {
+export function applyFM(param, value, begin) {
   const {
     fmh: fmHarmonicity = 1,
     fmi: fmModulationIndex,
@@ -385,11 +384,9 @@ export function applyFM(param, value, begin, normalized = false) {
   if (fmModulationIndex) {
     const ac = getAudioContext();
     envGain = ac.createGain();
-    const carrFreq = param.value || getFrequencyFromValue(value);
-    const fmObj = fm(carrFreq, fmHarmonicity, fmModulationIndex, fmWaveform, normalized);
-    const modulator = fmObj.node;
-    debugger;
-    // const modulator = fmObj.modulator;
+    const carrFreq = getFrequencyFromValue(value);
+    const fmObj = fm(carrFreq, fmHarmonicity, fmModulationIndex, fmWaveform);
+    const modulator = fmObj.modulator;
     innerStop = fmObj.stop;
     if (![fmAttack, fmDecay, fmSustain, fmRelease, fmVelocity].some((v) => v !== undefined)) {
       // no envelope by default
@@ -413,10 +410,10 @@ export function applyFM(param, value, begin, normalized = false) {
       envGain.connect(param);
     }
   }
-  const stop = () => {
-    innerStop?.();
-    // envGain?.disconnect();
-  }
+  const stop = (time) => {
+    innerStop?.(time);
+    envGain?.disconnect();
+  };
   return { modulator: envGain, stop };
 }
 

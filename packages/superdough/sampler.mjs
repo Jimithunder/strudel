@@ -1,6 +1,13 @@
 import { getCommonSampleInfo } from './util.mjs';
 import { getAudioContext, registerSound, registerWaveTable } from './index.mjs';
-import { getADSRValues, applyFM, getParamADSR, getPitchEnvelope, getVibratoOscillator } from './helpers.mjs';
+import {
+  getADSRValues,
+  applyFM,
+  getParamADSR,
+  getPitchEnvelope,
+  getVibratoOscillator,
+  webAudioTimeout,
+} from './helpers.mjs';
 import { logger } from './logger.mjs';
 
 const bufferCache = {}; // string: Promise<ArrayBuffer>
@@ -305,7 +312,7 @@ export async function onTriggerSample(t, value, onended, bank, resolveUrl) {
   getParamADSR(node.gain, attack, decay, sustain, release, 0, 1, t, holdEnd, 'linear');
   getPitchEnvelope(bufferSource.detune, value, t, holdEnd);
   const { stop: vibStop } = getVibratoOscillator(bufferSource.detune, value, t);
-  const { stop: fmStop } = applyFM(bufferSource.playbackRate, value, t, true);
+  const { stop: fmStop } = applyFM(bufferSource.detune, value, t);
 
   const out = ac.createGain(); // we need a separate gain for the cutgroups because firefox...
   node.connect(out);
@@ -314,7 +321,6 @@ export async function onTriggerSample(t, value, onended, bank, resolveUrl) {
   const timeoutNode = webAudioTimeout(
     ac,
     () => {
-      debugger;
       bufferSource.stop(ac.currentTime);
       bufferSource.disconnect();
       vibStop(ac.currentTime);
@@ -331,7 +337,7 @@ export async function onTriggerSample(t, value, onended, bank, resolveUrl) {
     stop: (time) => {
       timeoutNode.stop(time);
     },
-  }
+  };
 
   // cut groups
   if (cut !== undefined) {
