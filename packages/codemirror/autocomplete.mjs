@@ -2,6 +2,8 @@ import jsdoc from '../../doc.json';
 import { autocompletion } from '@codemirror/autocomplete';
 import { h } from './html';
 
+const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+
 const escapeHtml = (str) => {
   const div = document.createElement('div');
   div.innerText = str;
@@ -54,18 +56,34 @@ const buildExamples = (examples) =>
   `
     : '';
 
-export const Autocomplete = (doc) =>
-  h`
-  <div class="autocomplete-info-container">
-    <div class="autocomplete-info-tooltip">
-      <h3 class="autocomplete-info-function-name">${getDocLabel(doc)}</h3>
-      ${doc.synonyms_text ? `<div class="autocomplete-info-function-synonyms">Synonyms: ${doc.synonyms_text}</div>` : ''}
-      ${doc.description ? `<div class="autocomplete-info-function-description">${doc.description}</div>` : ''}
-      ${buildParamsList(doc.params)}
-      ${buildExamples(doc.examples)}
+function addFading(scroller) {
+  const update = () => {
+    const distToBot = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+    const distToTop = scroller.scrollTop;
+    scroller.style.setProperty('--fadeBot', `${clamp(distToBot, 0, 32)}px`);
+    scroller.style.setProperty('--fadeTop', `${clamp(distToTop, 0, 32)}px`);
+  };
+  scroller.addEventListener('scroll', update, { passive: true });
+  new ResizeObserver(update).observe(scroller);
+  requestAnimationFrame(update);
+}
+
+export const Autocomplete = (doc) => {
+  const node = h`
+    <div class="autocomplete-info-container">
+      <div class="autocomplete-info-tooltip">
+        <h3 class="autocomplete-info-function-name">${getDocLabel(doc)}</h3>
+        ${doc.synonyms_text ? `<div class="autocomplete-info-function-synonyms">Synonyms: ${doc.synonyms_text}</div>` : ''}
+        ${doc.description ? `<div class="autocomplete-info-function-description">${doc.description}</div>` : ''}
+        ${buildParamsList(doc.params)}
+        ${buildExamples(doc.examples)}
+      </div>
     </div>
-  </div>
-`[0];
+  `[0];
+  const tooltip = node.querySelector('.autocomplete-info-tooltip');
+  addFading(tooltip);
+  return node;
+}
 
 const isValidDoc = (doc) => {
   const label = getDocLabel(doc);
