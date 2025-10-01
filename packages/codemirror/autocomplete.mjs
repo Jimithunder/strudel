@@ -57,11 +57,15 @@ const buildExamples = (examples) =>
     : '';
 
 function addFading(scroller) {
+  const fader = scroller.querySelector('.autocomplete-info-tooltip');
   const update = () => {
-    const distToBot = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-    const distToTop = scroller.scrollTop;
-    scroller.style.setProperty('--fadeBot', `${clamp(distToBot, 0, 32)}px`);
-    scroller.style.setProperty('--fadeTop', `${clamp(distToTop, 0, 32)}px`);
+    const scrollTop = scroller.scrollTop;
+    const scrollBot = scrollTop + scroller.clientHeight;
+    const distToBot = scroller.scrollHeight - scrollBot;
+    fader.style.setProperty('--scrollTop', `${scrollTop}px`);
+    fader.style.setProperty('--scrollBot', `${scrollBot}px`);
+    fader.style.setProperty('--fadeBot', `${scrollBot - clamp(distToBot, 0, 48)}px`);
+    fader.style.setProperty('--fadeTop', `${scrollTop + clamp(scrollTop, 0, 32)}px`);
   };
   scroller.addEventListener('scroll', update, { passive: true });
   new ResizeObserver(update).observe(scroller);
@@ -80,8 +84,7 @@ export const Autocomplete = (doc) => {
       </div>
     </div>
   `[0];
-  const tooltip = node.querySelector('.autocomplete-info-tooltip');
-  addFading(tooltip);
+  addFading(node);
   return node;
 }
 
