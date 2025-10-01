@@ -444,7 +444,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
 
   constructor() {
     super();
-    this.maxDelaySec = 20;
+    this.maxDelaySec = 2;
     const rawLen = Math.ceil(this.maxDelaySec * sampleRate);
     this.buffLen = 1 << Math.ceil(Math.log2(rawLen + 4));
     this.mask = this.buffLen - 1; // power of 2 buffer and masking for faster wrapping
