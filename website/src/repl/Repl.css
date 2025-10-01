@@ -113,10 +113,10 @@
   --scrollBot: 400px;
   mask-image: linear-gradient(
     to bottom,
-    rgba(0,0,0,0) var(--scrollTop),
+    rgba(0, 0, 0, 0) var(--scrollTop),
     #000 var(--fadeTop),
     #000 var(--fadeBot),
-    rgba(0,0,0,0) var(--scrollBot)
+    rgba(0, 0, 0, 0) var(--scrollBot)
   );
 }
 

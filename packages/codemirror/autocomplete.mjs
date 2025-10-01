@@ -86,7 +86,7 @@ export const Autocomplete = (doc) => {
   `[0];
   addFading(node);
   return node;
-}
+};
 
 const isValidDoc = (doc) => {
   const label = getDocLabel(doc);
