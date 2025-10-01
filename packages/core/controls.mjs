@@ -363,7 +363,7 @@ export const { n } = registerControl('n');
  * @example
  * note("fbb1 a#0 cbbb-1 e##-2").sound("saw")
  */
-export const { note } = registerControl(['note', 'n', 'velocity']);
+export const { note } = registerControl(['note', 'n']);
 
 /**
  * A pattern of numbers that speed up (or slow down) samples while they play. Currently only supported by osc / superdirt.
