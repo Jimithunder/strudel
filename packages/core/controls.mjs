@@ -1128,6 +1128,8 @@ export const { sfenv } = registerControl('sfenv');
 
 /**
  * Sets the number of (cascaded) stages of a special filter
+ * WARNING: This can lead to extreme resonance, especially for the 'comb' filter
+ * Please consider pairing with `sfdamp` or reducing `sfq` and protect your ears
  *
  * @name sfstages
  * @param {number | Pattern} stages Number of stages

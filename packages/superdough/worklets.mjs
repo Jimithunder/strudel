@@ -578,7 +578,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           y = ch > 0 ? y : this.interp(this.buffers[ch][numStages - 1], this.writeIndex - offset);
         }
         let yFinal = lerp(yTotal / numStages, y, seriality);
-        yFinal = driveLin * yFinal;
+        yFinal = clamp(driveLin * yFinal, -1, 1); // clipping for protection against runaway resonance
         output[ch][n] = lerp(x, yFinal, dryMix);
       }
       this.writeIndex = (this.writeIndex + 1) & this.mask;
