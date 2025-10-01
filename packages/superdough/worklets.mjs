@@ -436,7 +436,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       { name: 'stereo', defaultValue: 0, minValue: 0, maxValue: 1 },
       { name: 'rate', defaultValue: 0.001 },
       { name: 'depth', defaultValue: 0 },
-      { name: 'seriality', defaultValue: 1, minValue: 0, maxValue: 1 },
+      { name: 'seriality', defaultValue: 0, minValue: 0, maxValue: 1 },
       { name: 'mode', defaultValue: 0 },
       { name: 'end', defaultValue: -1 },
     ];

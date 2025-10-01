@@ -1196,19 +1196,21 @@ export const { sfdepth } = registerControl('sfdepth');
  * parallel voices and serial cascaded filters
  *
  * @name sfser
+ * @synonyms sfseriality
  * @param {number | Pattern} seriality Mix between parallel and serial
  *
  */
-export const { sfser } = registerControl('sfser');
+export const { sfser, sfseriality } = registerControl('sfser', 'sfseriality');
 
 /**
  * Sets the polarity of a special filter
  *
  * @name sfpol
+ * @synonyms sfpolarity
  * @param {number | Pattern} polarity Between -1 and 1
  *
  */
-export const { sfpol } = registerControl('sfpol');
+export const { sfpol, sfpolarity } = registerControl('sfpol', 'sfpolarity');
 
 /**
  * Sets the lowpass filter envelope modulation depth.
