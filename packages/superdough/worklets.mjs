@@ -481,7 +481,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
 
   process(inputs, outputs, parameters) {
     let endTime = parameters.end[0];
-    endTime = (endTime < 0) ? Number.POSITIVE_INFINITY : endTime;
+    endTime = endTime < 0 ? Number.POSITIVE_INFINITY : endTime;
     if (currentTime >= endTime) {
       return false;
     }
@@ -490,13 +490,6 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     const numChannels = output.length;
     const numStages = Math.floor(parameters.stages[0]);
     const spreadFactor = (2 * Math.PI) / numStages;
-    const hasInput = !(input[0] === undefined);
-    if (!hasInput) {
-      for (let ch = 0; ch < output.length; ch++) {
-        output[ch].fill(0);
-      }
-      return true;
-    }
     // reset if parameters.stages changes
     if (!this.buffers.length || this.buffers[0].length < numStages) this.initialized = false;
     if (!this.initialized) {
@@ -552,12 +545,13 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
             const lpPrev = this.lpState[ch][s];
             const lpNow = (1 - damp) * delayed + damp * lpPrev;
             this.lpState[ch][s] = lpNow;
+            const g = polarity * fb;
             if (mode === 0) {
               // Comb
-              yp = y + polarity * fb * lpNow;
+              yp = y + g * lpNow;
             } else if (mode === 1) {
               // Flange
-              yp = y + polarity * fb * xDelayed;
+              yp = y + g * xDelayed;
             } else {
               // Allpass
               yp = -fb * y + xDelayed + fb * delayed;

@@ -35,6 +35,7 @@ function makeSaturationCurve(amount, n_samples) {
   return curve;
 }
 
+const stringsPlaying = new Map();
 export function registerSynthSounds() {
   [...waveforms].forEach((s) => {
     registerSound(
@@ -149,6 +150,15 @@ export function registerSynthSounds() {
   registerSound(
     'string',
     (t, value, onended) => {
+      for (let i = 0; i <= stringsPlaying.size - 8; i++) {
+        const stringEntry = stringsPlaying.entries().next();
+        const [id, source] = stringEntry.value;
+        const endTime = t + 0.25;
+        source?.node?.gain?.linearRampToValueAtTime(0, endTime);
+        source?.stop?.(endTime);
+        stringsPlaying.delete(id);
+      }
+      const id = Math.round(Math.random() * 1000000);
       const { duration } = value;
       const holdend = t + duration;
       const frequency = getFrequencyFromValue(value);
@@ -226,12 +236,15 @@ export function registerSynthSounds() {
         t,
         end,
       );
-      return {
+      const handle = {
         node,
         stop: (time) => {
           timeoutNode.stop(time);
+          stringsPlaying.delete(id);
         },
       };
+      stringsPlaying.set(id, handle);
+      return handle;
     },
     { type: 'synth', prebake: true },
   );
