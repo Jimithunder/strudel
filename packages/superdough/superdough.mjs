@@ -745,7 +745,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   // last gain
-  const post = gainNode(postgain);
+  let post = gainNode(postgain);
   chain.push(post);
 
   // special filters
@@ -770,23 +770,19 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       rel: sfrelease,
       fenv: sfenv,
     };
-    const preSFiltNode = orbitBus.getSFilt(sFiltParams, t, end);
-    sFiltNode = gainNode(postgain);
-    preSFiltNode.connect(sFiltNode);
-    const sFiltSend = effectSend(post, preSFiltNode, sf);
-    audioNodes.push(sFiltSend);
-    let unfiltered = gainNode(1 - sf);
-    chain.push(unfiltered);
-    connectToDestination(unfiltered, channels);
-  } else {
-    sFiltNode = post;
-    connectToDestination(post, channels);
+    const sFiltNode = orbitBus.getSFilt(sFiltParams, t, end);
+    const sFiltSend = effectSend(post, sFiltNode, sf);
+    const unfiltered = post.connect(gainNode(1 - sf));
+    post = new GainNode(audioContext, { gain: 1, channelCount: 2, channelCountMode: 'explicit' });
+    sFiltNode.connect(post);
+    unfiltered.connect(post);
+    audioNodes = audioNodes.concat([post, sFiltSend, unfiltered]);
   }
 
   // delay
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {
     orbitBus.getDelay(delaytime, delayfeedback, t);
-    orbitBus.sendDelay(sFiltNode, delay);
+    orbitBus.sendDelay(post, delay);
   }
 
   // reverb
@@ -803,7 +799,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       roomIR = await loadBuffer(url, ac, ir, 0);
     }
     orbitBus.getReverb(roomsize, roomfade, roomlp, roomdim, roomIR, irspeed, irbegin);
-    orbitBus.sendReverb(sFiltNode, room);
+    orbitBus.sendReverb(post, room);
   }
 
   if (djf != null) {
