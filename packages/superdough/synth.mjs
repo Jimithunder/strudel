@@ -226,7 +226,7 @@ export function registerSynthSounds() {
         t,
         end,
       );
-      return handle = {
+      return {
         node,
         stop: (time) => {
           timeoutNode.stop(time);
