@@ -3536,3 +3536,45 @@ export const morph = (frompat, topat, bypat) => {
   bypat = reify(bypat);
   return frompat.innerBind((from) => topat.innerBind((to) => bypat.innerBind((by) => _morph(from, to, by))));
 };
+
+/**
+ * State
+ */
+export const state = register('state', (updateFn, pat) => {
+  let lastT;
+  let state = updateFn({}, new TimeSpan(0, 1));
+  return pat
+    .withValue((v) => ({ ...v, ...state }))
+    .onTrigger((hap) => {
+      const t = Number(hap.part.begin);
+      if (t === lastT) return;
+      Object.assign(state, updateFn(state, hap.part));
+      lastT = t;
+    }, false);
+});
+
+Pattern.prototype.stadd = function (addPat) {
+  return this.state((s, span) => {
+    const v = addPat.queryArc(span.begin, span.end)[0].value;
+    for (const k of Object.keys(v)) {
+      s[k] = (s[k] ?? 0) + v[k];
+    }
+    return s;
+  });
+};
+
+const _wrap = (x, max, min = 0) => min + _mod(x - min, max - min);
+Pattern.prototype.wrap = function (maxPat, minPat) {
+  return this.withHaps((haps, state) => {
+    const vMax = maxPat.query(state)[0].value;
+    const vMin = minPat ? minPat.query(state)[0].value : undefined;
+    return haps.map((h) => {
+      for (const k of Object.keys(vMax)) {
+        const max = vMax[k] ?? Number.POSITIVE_INFINITY;
+        const min = vMin?.[k];
+        h.value[k] = _wrap(h.value[k] ?? 0, max, min);
+      }
+      return h;
+    });
+  });
+};
