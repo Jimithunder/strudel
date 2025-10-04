@@ -265,7 +265,7 @@ export async function onTriggerSynth(t, value, onended, tables, cps, frameLen) {
       offset: value.wt,
       amount: value.wtenv,
       defaultAmount: 0.5,
-      shape: 'linear',
+      curve: 'linear',
       values: posADSRParams,
       holdEnd,
       defaultValues: [0, 0.5, 0, 0.1],

@@ -153,15 +153,20 @@ export const getADSRValues = (params, curve = 'linear', defaultValues) => {
   return [Math.max(a ?? 0, envmin), Math.max(d ?? 0, envmin), Math.min(sustain, envmax), Math.max(r ?? 0, releaseMin)];
 };
 
-// helper utility for applying standard modulators to a parameter
-export function applyParameterModulators(audioContext, param, start, end, envelopeValues, lfoValues) {
-  let { amount, offset, defaultAmount = 1, curve = 'linear', values, holdEnd, defaultValues } = envelopeValues;
-
+export function applyADSR(param, start, envelopeConfig) {
+  let {
+    amount,
+    offset,
+    defaultAmount = 1,
+    curve = 'linear',
+    values,
+    holdEnd,
+    defaultValues = [0.001, 0.05, 0.6, 0.01],
+  } = envelopeConfig;
   if (amount == null) {
     const hasADSRParams = values.some((p) => p != null);
     amount = hasADSRParams ? defaultAmount : 0;
   }
-
   const min = offset ?? 0;
   const max = amount + min;
   const diff = Math.abs(max - min);
@@ -169,22 +174,30 @@ export function applyParameterModulators(audioContext, param, start, end, envelo
     const [attack, decay, sustain, release] = getADSRValues(values, curve, defaultValues);
     getParamADSR(param, attack, decay, sustain, release, min, max, start, holdEnd, curve);
   }
-  let lfo;
-  let { defaultDepth = 1, depth, dcoffset, ...getLfoInputs } = lfoValues;
+}
 
+export function applyLfo(audioContext, param, start, end, lfoConfig) {
+  let { defaultDepth = 1, depth, dcoffset, ...lfoParams } = lfoConfig;
   if (depth == null) {
-    const hasLFOParams = Object.values(getLfoInputs).some((v) => v != null);
+    const hasLFOParams = Object.values(lfoParams).some((v) => v != null);
     depth = hasLFOParams ? defaultDepth : 0;
   }
+  let lfo;
   if (depth) {
     lfo = getLfo(audioContext, start, end, {
       depth,
       dcoffset,
-      ...getLfoInputs,
+      ...lfoParams,
     });
     lfo.connect(param);
   }
+  return lfo;
+}
 
+// helper utility for applying standard modulators to a parameter
+export function applyParameterModulators(audioContext, param, start, end, envelopeConfig, lfoConfig) {
+  applyADSR(param, start, envelopeConfig);
+  const lfo = applyLfo(audioContext, param, start, end, lfoConfig);
   return { lfo, disconnect: () => lfo?.disconnect() };
 }
 

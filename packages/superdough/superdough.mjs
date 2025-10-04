@@ -9,7 +9,7 @@ import './reverb.mjs';
 import './vowel.mjs';
 import { nanFallback, _mod, cycleToSeconds } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
-import { createFilter, effectSend, gainNode, getCompressor, getLfo, getWorklet, webAudioTimeout, getParamADSR } from './helpers.mjs';
+import { applyADSR, createFilter, effectSend, gainNode, getCompressor, getLfo, getWorklet } from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger } from './logger.mjs';
 import { loadBuffer, onTriggerSample } from './sampler.mjs';
@@ -447,13 +447,6 @@ export async function getInput(input) {
   return sourceNode;
 }
 
-function effectSend(input, effect, wet) {
-  const send = gainNode(wet);
-  input.connect(send);
-  send.connect(effect);
-  return send;
-}
-
 function effectSendSafe(input, targetNode, wet) {
   const ac = input.context;
   const send = new GainNode(ac, { gain: 0 });
@@ -653,23 +646,13 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     sourceNode = source(t, value, hapDuration, cps);
   } else if (input) {
     sourceNode = await getInput(input);
-    const [attack, decay, sustain, release] = getADSRValues(
-      [value.attack, value.decay, value.sustain, value.release],
-      'linear',
-      [0.001, 0.05, 0.6, 0.01],
-    );
     const envGain = gainNode(0);
-    sourceNode = sourceNode.connect(envGain);
-    getParamADSR(sourceNode.gain, attack, decay, sustain, release, 0, 1, t, endWithRelease, 'linear');
-    webAudioTimeout(
-      ac,
-      () => {
-        envGain.disconnect();
-        onEnded();
-      },
-      t,
-      endWithRelease,
-    );
+    chain.push(sourceNode).push(envGain);
+    const envConfig = {
+      values: [value.attack, value.decay, value.sustain, value.release],
+      holdEnd: end,
+    };
+    applyADSR(envGain.gain, t, envConfig);
   } else if (getSound(s)) {
     const { onTrigger } = getSound(s);
     const onEnded = () => {
