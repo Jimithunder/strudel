@@ -3540,45 +3540,19 @@ export const morph = (frompat, topat, bypat) => {
 /**
  * State
  */
-export const state = register('state', (updateFn, pat) => {
-  let lastT;
-  let state = updateFn({}, new TimeSpan(0, 1));
-  return pat
-    .withValue((v) => ({ ...v, ...state }))
-    .onTrigger((hap) => {
-      const t = Number(hap.part.begin);
-      if (t === lastT) return;
-      Object.assign(state, updateFn(state, hap.part));
-      lastT = t;
-    }, false);
-});
 
-Pattern.prototype.stadd = function (addPat) {
-  return this.state((s, span) => {
-    const v = addPat.queryArc(span.begin, span.end)[0].value;
-    for (const k of Object.keys(v)) {
-      s[k] = (s[k] ?? 0) + v[k];
-    }
-    return s;
-  });
-};
-
-const _wrap = (x, max, min = 0) => min + _mod(x - min, max - min);
-Pattern.prototype.wrap = function (maxPat, minPat) {
-  return this.withHaps((haps, state) => {
-    const vMax = maxPat.query(state)[0].value;
-    const vMin = minPat ? minPat.query(state)[0].value : undefined;
-    return haps.map((h) => {
-      for (const k of Object.keys(vMax)) {
-        const max = vMax[k] ?? Number.POSITIVE_INFINITY;
-        const min = vMin?.[k];
-        h.value[k] = _wrap(h.value[k] ?? 0, max, min);
-      }
-      return h;
-    });
-  });
-};
-
+/**
+ * Resolves all patterns appearing in the `value` of the pattern into actual values
+ * Similar to `outerJoin`, but applies to _all_ patterns within the value
+ *
+ * @name resolveValues
+ * @memberof Pattern
+ * @returns Pattern
+ * @example
+ * s("square")
+ *   .withValue(() => ({ cutoff: run(8).slow(8).add(1).mul(200), note: "<[A,C,E] [G,B,D]>"}))
+ *   .resolveValues()
+ */
 export const resolveValues = register('resolveValues', (pat) => {
   return pat.withHaps((haps, state) => {
     const out = [];
@@ -3608,7 +3582,6 @@ export const resolveValues = register('resolveValues', (pat) => {
         ];
       });
       if (resolvedValues.length === 0) {
-        // Early exit
         out.push(hap);
         continue;
       }
@@ -3644,3 +3617,65 @@ export const resolveValues = register('resolveValues', (pat) => {
     return out;
   });
 });
+
+/**
+ * Sets up `state` propagation on the pattern. The state will be updated on each timestep where there
+ * is a trigger, via the provided `updateFn`.
+ *
+ * Note that all values on the state will automatically propagate, so you only need to return an object
+ * that has the values you wish to update.
+ *
+ * The state provides a `__count` value to support things like [Isorhythms](https://en.wikipedia.org/wiki/Isorhythm) and
+ * the `__time` of the current trigger.
+ *
+ * @name state
+ * @memberof Pattern
+ * @returns Pattern
+ * @param {function} updateFn The function used to update the state
+ * @example
+ * s("tri").struct("x ~ [~ x] ~ x!2").duration(0.75).lpf(200).lpenv(2).delay(0.5)
+ *   .state((s) => ({
+ *     note: ["c#4", "f#2", "a#", "f#4", "g#3", "d#3"][s.__count % 6],
+ *     room: _mod((s.room ?? 0) + 0.1, 1),
+ *   }))
+ */
+export const state = register('state', (updateFn, pat) => {
+  let state = { __count: 0, __time: 0 };
+  Object.assign(state, updateFn(state));
+  return pat
+    .withValue((v) => ({ ...v, ...state }))
+    .resolveValues()
+    .onTrigger((hap) => {
+      const t = Number(hap.part.begin);
+      if (t === state.__time) return;
+      state.__time = t;
+      state.__count += 1;
+      Object.assign(state, updateFn(state));
+    }, false);
+});
+
+Pattern.prototype.stadd = function (addPat) {
+  return this.state((s, span) => {
+    const v = addPat.queryArc(span.begin, span.end)[0].value;
+    for (const k of Object.keys(v)) {
+      s[k] = (s[k] ?? 0) + v[k];
+    }
+    return s;
+  });
+};
+
+const _wrap = (x, max, min = 0) => min + _mod(x - min, max - min);
+Pattern.prototype.wrap = function (maxPat, minPat) {
+  return this.withHaps((haps, state) => {
+    const vMax = maxPat.query(state)[0].value;
+    const vMin = minPat ? minPat.query(state)[0].value : undefined;
+    return haps.map((h) => {
+      for (const k of Object.keys(vMax)) {
+        const max = vMax[k] ?? Number.POSITIVE_INFINITY;
+        const min = vMin?.[k];
+        h.value[k] = _wrap(h.value[k] ?? 0, max, min);
+      }
+      return h;
+    });
+  });
+};
