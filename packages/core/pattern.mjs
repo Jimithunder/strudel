@@ -24,6 +24,7 @@ import {
   zipWith,
   stringifyValues,
 } from './util.mjs';
+import { timeToRand } from './random.mjs';
 import drawLine from './drawLine.mjs';
 import { logger } from './logger.mjs';
 
@@ -3640,7 +3641,7 @@ export const resolveValues = register('resolveValues', (pat) => {
  *   }))
  */
 export const state = register('state', (updateFn, pat) => {
-  let state = { __count: 0, __time: 0 };
+  const state = { __count: 0, __time: 0 };
   Object.assign(state, updateFn(state));
   return pat
     .withValue((v) => ({ ...v, ...state }))
@@ -3652,6 +3653,37 @@ export const state = register('state', (updateFn, pat) => {
       state.__count += 1;
       Object.assign(state, updateFn(state));
     }, false);
+});
+
+/**
+ * Turns the pattern into a [Markov chain](https://en.wikipedia.org/wiki/Markov_chain) with values
+ * equal to an index from the `table` parameter, which defines the transition probabilities between
+ * indices. Each trigger will sample from the distribution. Often paired with `pick` or `pickOut`.
+ *
+ * @name markov
+ * @memberof Pattern
+ * @returns Pattern
+ * @param {number[][]} table Table of transition probabilities
+ * @example
+ * const markovTable = [[ 0, .2, .8], [ .3,  0, .7], [ .9, .1,  0]];
+ * "x".beat("0, 3, 6, 8", 16)
+ *   .markov(markovTable)
+ *   .pickOut(['bd', 'sd', 'hh']).s().bank('tr909').log()
+ *   .early(5)
+ */
+export const markov = register('markov', (table, pat) => {
+  return pat
+    .state((state) => {
+      const cdf = table[state.value ?? 0].reduce((acc, p) => {
+        return (acc.push((acc.at(-1) ?? 0) + p), acc);
+      }, []);
+      const sampled = timeToRand(state.__time);
+      const next = cdf.findIndex((element) => element > sampled);
+      return {
+        value: next,
+      };
+    })
+    .fmap((v) => v.value);
 });
 
 Pattern.prototype.stadd = function (addPat) {
