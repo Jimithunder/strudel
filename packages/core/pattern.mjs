@@ -3578,3 +3578,69 @@ Pattern.prototype.wrap = function (maxPat, minPat) {
     });
   });
 };
+
+export const resolveValues = register('resolveValues', (pat) => {
+  return pat.withHaps((haps, state) => {
+    const out = [];
+    for (const hap of haps) {
+      const baseWhole = hap.whole;
+      const basePart = hap.part;
+      const entries = Object.entries(hap.value || {});
+      const resolvedValues = entries.map(([key, val]) => {
+        if (val instanceof Pattern) {
+          const vHaps = val.query(state) || [];
+          return vHaps.map((vHap) => ({
+            key,
+            val: vHap.value,
+            part: vHap.part,
+            context: vHap.context,
+            locations: vHap.context.locations || [],
+          }));
+        }
+        return [
+          {
+            key,
+            val,
+            part: basePart,
+            context: {},
+            locations: [],
+          },
+        ];
+      });
+      if (resolvedValues.length === 0) {
+        // Early exit
+        out.push(hap);
+        continue;
+      }
+      const stack = [
+        {
+          count: 0,
+          part: basePart,
+          value: {},
+          context: {},
+          locations: [],
+        },
+      ];
+      while (stack.length) {
+        const { count, part, value, context, locations } = stack.pop();
+        if (count === resolvedValues.length) {
+          context.locations = locations;
+          out.push(new Hap(baseWhole, part, value, context));
+          continue;
+        }
+        for (const entry of resolvedValues[count]) {
+          const newPart = part.intersection(entry.part);
+          if (!newPart) continue;
+          stack.push({
+            count: count + 1,
+            part: newPart,
+            value: { ...value, [entry.key]: entry.val },
+            context: { ...context, ...entry.context },
+            locations: [...locations, ...entry.locations],
+          });
+        }
+      }
+    }
+    return out;
+  });
+});
