@@ -1355,6 +1355,20 @@ export const { hresonance, hpq } = registerControl('hresonance', 'hpq');
  */
 // currently an alias of 'resonance' https://codeberg.org/uzu/strudel/issues/496
 export const { resonance, lpq } = registerControl('resonance', 'lpq');
+
+/**
+ * Amplitude Modulation
+ *
+ * @name am
+ * @param {number | Pattern} amount of amplitude modulation
+ * @example
+ * d1: stack(
+ * note("0").trans(-31).s("sin").dry(0).am(10),
+ * note("0").trans(24).s("saw").dry(1).lpf(1000)
+ * )
+ */
+export const { am } = registerControl('am');
+
 /**
  * DJ filter, below 0.5 is low pass filter, above is high pass filter.
  *

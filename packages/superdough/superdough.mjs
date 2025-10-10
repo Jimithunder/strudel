@@ -430,6 +430,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     duckattack,
     duckdepth,
     djf,
+    am,
     // filters
     fanchor = getDefaultValue('fanchor'),
     drive = 0.69,
@@ -704,6 +705,11 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   // last gain
   const post = new GainNode(ac, { gain: postgain });
   chain.push(post);
+
+  if (am !== undefined && am > 0) {
+    orbitBus.getAmpMod();
+    orbitBus.sendAmpMod(post, am);
+  }
 
   // delay
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {

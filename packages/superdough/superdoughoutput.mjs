@@ -36,6 +36,18 @@ export class Orbit {
     val.setValueAtTime(value, t);
   }
 
+  getAmpMod() {
+    if (this.ampModNode == null) {
+      this.ampModNode = new GainNode(this.audioContext, { gain: 1 });
+      this.ampModNode.connect(this.output.gain);
+    }
+    return this.ampModNode;
+  }
+
+  sendAmpMod(node, amount) {
+    effectSend(node, this.ampModNode, amount);
+  }
+
   getDelay(delaytime = 0, feedback = 0.5, t) {
     const maxfeedback = 0.98;
     if (feedback > maxfeedback) {
