@@ -8429,6 +8429,24 @@ exports[`runs examples > example "ribbon" example index 2 1`] = `
 ]
 `;
 
+exports[`runs examples > example "rm" example index 0 1`] = `
+[
+  "[ 0/1 → 1/1 | note:36 s:saw dry:0 rm:2 ]",
+  "[ 1/1 → 2/1 | note:36 s:saw dry:0 rm:2 ]",
+  "[ 2/1 → 3/1 | note:36 s:saw dry:0 rm:2 ]",
+  "[ 3/1 → 4/1 | note:36 s:saw dry:0 rm:2 ]",
+]
+`;
+
+exports[`runs examples > example "rmorbit" example index 0 1`] = `
+[
+  "[ 0/1 → 1/1 | note:36 s:saw dry:0 rm:2 orbit:2 ]",
+  "[ 1/1 → 2/1 | note:36 s:saw dry:0 rm:2 orbit:2 ]",
+  "[ 2/1 → 3/1 | note:36 s:saw dry:0 rm:2 orbit:2 ]",
+  "[ 3/1 → 4/1 | note:36 s:saw dry:0 rm:2 orbit:2 ]",
+]
+`;
+
 exports[`runs examples > example "room" example index 0 1`] = `
 [
   "[ 0/1 → 1/4 | s:bd room:0 ]",
