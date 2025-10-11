@@ -1357,26 +1357,29 @@ export const { hresonance, hpq } = registerControl('hresonance', 'hpq');
 export const { resonance, lpq } = registerControl('resonance', 'lpq');
 
 /**
- * Amplitude Modulation (or ring modulation, depending on the value)
+ * Ring Modulation. Determines the amount of dry signal to send to a ring modulation
+ * bus, which will be modulated by patterns with an `rmorbit` corresponding to this orbit
  *
- * @name am
- * @param {number | Pattern} amount Amount of amplitude modulation
+ * @name rm
+ * @param {number | Pattern} amount Amount of ring modulation
  * @example
- * source: note("0").trans(-24).s("sin").dry(0).am(10)
- * target: note("0").trans(36).s("saw").dry(1)
+ * source: note("0").trans(-24).s("sin").dry(0).rmorbit(1)
+ * target: note("0").trans(36).s("saw").dry(0).rm(2)
  */
-export const { am } = registerControl('am');
+export const { rm } = registerControl('rm');
 
 /**
- * Target arbitrary orbits for amplitude modulation, defaults to the current orbit
+ * Sets up the current pattern as a modulator for the ring modulation bus of the target orbit, defaults to the current orbit.
  *
- * @name amorbit
+ * Can be applied to multiple orbits with the ':' mininotation, e.g. `rmorbit("2:3")`
+ *
+ * @name rmorbit
  * @param {number | Pattern} orbit Orbit target for amplitude modulation
  * @example
- * source: note("0").trans(-24).s("sin").dry(0).am(10).amorbit(1)
- * target: note("0").trans(36).s("saw").dry(1)
+ * source: note("0").trans(-24).s("sin").dry(0).rmorbit(2)
+ * target: note("0").trans(36).s("saw").dry(0).rm(2).orbit(2)
  */
-export const { amorbit } = registerControl('amorbit');
+export const { rmorbit } = registerControl('rmorbit');
 
 /**
  * DJ filter, below 0.5 is low pass filter, above is high pass filter.

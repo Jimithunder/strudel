@@ -431,9 +431,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     duckdepth,
     djf,
 
-    // amplitude modulation
-    am,
-    amorbit,
+    // ring modulation
+    rm,
+    rmorbit,
 
     // filters
     fanchor = getDefaultValue('fanchor'),
@@ -710,10 +710,12 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   const post = new GainNode(ac, { gain: postgain });
   chain.push(post);
 
-  if (am !== undefined && am > 0) {
-    let amorb = [orbit];
-    if(amorbit !== undefined) amorb = amorbit;
-    audioController.ampMod(post, amorb, am);
+  // Ring Modulation
+  if (rmorbit !== undefined) {
+    audioController.ringMod(post, rmorbit);
+  }
+  if (rm > 0) {
+    orbitBus.sendRM(post, rm);
   }
 
   // delay
