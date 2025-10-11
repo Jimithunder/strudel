@@ -16,6 +16,8 @@ export class Orbit {
     this.output = new GainNode(audioContext, { gain: 1, channelCount: 2, channelCountMode: 'explicit' });
     this.summingNode = new GainNode(audioContext, { gain: 1, channelCount: 2, channelCountMode: 'explicit' });
     this.summingNode.connect(this.output);
+    this.ringModNode = new GainNode(this.audioContext, { gain: 0, channelCount: 2, channelCountMode: 'explicit' }); // gain 0 for RM
+    this.connectToOutput(this.ringModNode);
   }
 
   disconnect() {
@@ -111,10 +113,6 @@ export class Orbit {
   }
 
   attachRingModulator(modulator) {
-    if (this.ringModNode == null) {
-      this.ringModNode = new GainNode(this.audioContext, { gain: 0, channelCount: 2, channelCountMode: 'explicit' });
-      this.connectToOutput(this.ringModNode);
-    }
     modulator.connect(this.ringModNode.gain);
   }
 
@@ -216,7 +214,7 @@ export class SuperdoughAudioController {
     targetOrbits.forEach((target) => {
       const orbit = this.nodes[target];
       if (orbit == null) {
-        errorLogger(new Error(`am target orbit ${target} does not exist`), 'superdough');
+        errorLogger(new Error(`rm target orbit ${target} does not exist`), 'superdough');
         return;
       }
       orbit.attachRingModulator(node);

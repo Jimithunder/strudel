@@ -1369,7 +1369,7 @@ export const { resonance, lpq } = registerControl('resonance', 'lpq');
 export const { rm } = registerControl('rm');
 
 /**
- * Sets up the current pattern as a modulator for the ring modulation bus of the target orbit, defaults to the current orbit.
+ * Sets up this pattern as a modulator for the ring modulation bus of the target orbit(s).
  *
  * Can be applied to multiple orbits with the ':' mininotation, e.g. `rmorbit("2:3")`
  *
