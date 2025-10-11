@@ -38,7 +38,7 @@ export class Orbit {
 
   getAmpMod() {
     if (this.ampModNode == null) {
-      this.ampModNode = new GainNode(this.audioContext, { gain: 1 });
+      this.ampModNode = new GainNode(this.audioContext, { gain: 1, channelCount: 2, channelCountMode: 'explicit' });
       this.ampModNode.connect(this.output.gain);
     }
     return this.ampModNode;

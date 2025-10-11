@@ -1360,11 +1360,11 @@ export const { resonance, lpq } = registerControl('resonance', 'lpq');
  * Amplitude Modulation
  *
  * @name am
- * @param {number | Pattern} amount of amplitude modulation
+ * @param {number | Pattern} amount Amount of amplitude modulation
  * @example
  * d1: stack(
- * note("0").trans(-31).s("sin").dry(0).am(10),
- * note("0").trans(24).s("saw").dry(1).lpf(1000)
+ * source: note("0").trans(-31).s("sin").dry(0).am(10)
+ * target: note("0").trans(24).s("saw").dry(1).lpf(1000)
  * )
  */
 export const { am } = registerControl('am');
