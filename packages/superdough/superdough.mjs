@@ -430,7 +430,11 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     duckattack,
     duckdepth,
     djf,
+
+    // amplitude modulation
     am,
+    amorbit,
+
     // filters
     fanchor = getDefaultValue('fanchor'),
     drive = 0.69,
@@ -707,8 +711,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   chain.push(post);
 
   if (am !== undefined && am > 0) {
-    orbitBus.getAmpMod();
-    orbitBus.sendAmpMod(post, am);
+    let amorb = [orbit];
+    if(amorbit !== undefined) amorb = amorbit;
+    audioController.ampMod(post, amorb, am);
   }
 
   // delay

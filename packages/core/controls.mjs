@@ -1357,17 +1357,26 @@ export const { hresonance, hpq } = registerControl('hresonance', 'hpq');
 export const { resonance, lpq } = registerControl('resonance', 'lpq');
 
 /**
- * Amplitude Modulation
+ * Amplitude Modulation (or ring modulation, depending on the value)
  *
  * @name am
  * @param {number | Pattern} amount Amount of amplitude modulation
  * @example
- * d1: stack(
- * source: note("0").trans(-31).s("sin").dry(0).am(10)
- * target: note("0").trans(24).s("saw").dry(1).lpf(1000)
- * )
+ * source: note("0").trans(-24).s("sin").dry(0).am(10)
+ * target: note("0").trans(36).s("saw").dry(1)
  */
 export const { am } = registerControl('am');
+
+/**
+ * Target arbitrary orbits for amplitude modulation, defaults to the current orbit
+ *
+ * @name amorbit
+ * @param {number | Pattern} orbit Orbit target for amplitude modulation
+ * @example
+ * source: note("0").trans(-24).s("sin").dry(0).am(10).amorbit(1)
+ * target: note("0").trans(36).s("saw").dry(1)
+ */
+export const { amorbit } = registerControl('amorbit');
 
 /**
  * DJ filter, below 0.5 is low pass filter, above is high pass filter.

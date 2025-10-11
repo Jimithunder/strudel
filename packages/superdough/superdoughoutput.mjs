@@ -36,18 +36,6 @@ export class Orbit {
     val.setValueAtTime(value, t);
   }
 
-  getAmpMod() {
-    if (this.ampModNode == null) {
-      this.ampModNode = new GainNode(this.audioContext, { gain: 1, channelCount: 2, channelCountMode: 'explicit' });
-      this.ampModNode.connect(this.output.gain);
-    }
-    return this.ampModNode;
-  }
-
-  sendAmpMod(node, amount) {
-    effectSend(node, this.ampModNode, amount);
-  }
-
   getDelay(delaytime = 0, feedback = 0.5, t) {
     const maxfeedback = 0.98;
     if (feedback > maxfeedback) {
@@ -120,6 +108,15 @@ export class Orbit {
       0,
       t - 0.01,
     );
+  }
+
+  ampMod(node, amount) {
+    if (this.ampModNode == null) {
+      this.ampModNode = new GainNode(this.audioContext, { gain: 1, channelCount: 2, channelCountMode: 'explicit' });
+      this.ampModNode.connect(this.output.gain);
+    }
+    this.ampModNode.gain.value = amount;
+    node.connect(this.ampModNode);
   }
 
   connectToOutput(node) {
@@ -208,6 +205,18 @@ export class SuperdoughAudioController {
       const depth = depthArr[idx] ?? depthArr[0];
 
       orbit.duck(t, onset, attack, depth);
+    });
+  }
+
+  ampMod(node, targetOrbits, amount) {
+    const targetArr = [targetOrbits].flat();
+    targetArr.forEach((target) => {
+      const orbit = this.nodes[target];
+      if (orbit == null) {
+        errorLogger(new Error(`am target orbit ${target} does not exist`), 'superdough');
+        return;
+      }
+      orbit.ampMod(node, amount);
     });
   }
 
