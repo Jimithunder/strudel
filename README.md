@@ -1,14 +1,3 @@
-# strudel
-
-Live coding patterns on the web
-https://strudel.cc/
-
-- Try it here: <https://strudel.cc>
-- Docs: <https://strudel.cc/learn>
-- Technical Blog Post: <https://loophole-letters.vercel.app/strudel>
-- 1 Year of Strudel Blog Post: <https://loophole-letters.vercel.app/strudel1year>
-- 2 Years of Strudel Blog Post: <https://strudel.cc/blog/#year-2>
-
 ## Running Locally
 
 After cloning the project, you can run the REPL locally:
@@ -24,6 +13,41 @@ After cloning the project, you can run the REPL locally:
    pnpm dev
    ```
 
+## Real-time Collaboration
+
+Strudel supports real-time collaborative editing using Yjs and WebSockets, allowing multiple users to edit the same code simultaneously.
+
+### Starting the Collaboration Server
+
+To enable collaboration, you need to run the collaboration server:
+
+```bash
+pnpm collab
+```
+
+The server will start on port 1234 by default. You can customize the port and enable debug mode:
+
+```bash
+cd packages/collab && npm run server -- --port 1234 --debug
+```
+
+### Using Collaboration
+
+1. Start the collaboration server (see above)
+2. Open the Strudel REPL in your browser
+3. Click the "Collaborate" button in the header
+4. Share the generated URL with others
+5. All participants can now edit the code together in real-time!
+
+### Features
+
+- **Real-time synchronization**: Changes are instantly synced between all connected users
+- **Conflict-free editing**: Uses CRDTs (Conflict-free Replicated Data Types) via Yjs
+- **Cursor sharing**: See where other users are typing
+- **Room-based sessions**: Each collaboration session has a unique room ID
+- **No account required**: Just share the URL and start collaborating
+- **Generative AI**: You can generate code snippets using your gen ai api key
+
 ## Using Strudel In Your Project
 
 This project is organized into many [packages](./packages), which are also available on [npm](https://www.npmjs.com/search?q=%40strudel).
@@ -34,9 +58,6 @@ You will need to abide by the terms of the [GNU Affero Public Licence v3](LICENS
 
 Licensing info for the default sound banks can be found over on the [dough-samples](https://github.com/felixroos/dough-samples/blob/main/README.md) repository.
 
-## Contributing
-
-There are many ways to contribute to this project! See [contribution guide](./CONTRIBUTING.md). You can find the full list of contributors [here](https://codeberg.org/uzu/strudel/activity/contributors).
 
 ## Community
 

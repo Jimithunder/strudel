@@ -50,6 +50,10 @@ export const defaultSettings = {
   isCSSAnimationDisabled: false,
   maxPolyphony: 128,
   multiChannelOrbits: false,
+  geminiApiKey: '',
+  openRouterApiKey: '',
+  aiProvider: 'gemini', // 'gemini' or 'openrouter'
+  openRouterModel: 'anthropic/claude-3.5-sonnet',
 };
 
 let search = null;

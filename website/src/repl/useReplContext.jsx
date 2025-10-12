@@ -20,6 +20,15 @@ import { StrudelMirror, defaultSettings } from '@strudel/codemirror';
 import { clearHydra } from '@strudel/hydra';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseBoolean, settingsMap, useSettings } from '../settings.mjs';
+import { 
+  createCollaborationProvider, 
+  generateRoomId, 
+  getRoomIdFromUrl, 
+  updateUrlWithRoomId,
+  removeRoomIdFromUrl,
+  getShareableUrl,
+  setUserInfo 
+} from '@strudel/collab/collab.mjs';
 import {
   setActivePattern,
   setLatestCode,
@@ -71,6 +80,37 @@ export function useReplContext() {
   const init = useCallback(() => {
     const drawTime = [-2, 2];
     const drawContext = getDrawContext();
+    
+    // Check if there's a room ID in the URL
+    const urlRoomId = getRoomIdFromUrl();
+    let collaboration = null;
+    
+    if (urlRoomId) {
+      try {
+        const serverUrl = 'ws://localhost:1234';
+        const collab = createCollaborationProvider(urlRoomId, serverUrl);
+        collaboration = collab;
+        collabProviderRef.current = collab;
+        setIsCollaborating(true);
+        setRoomId(urlRoomId);
+        
+        // Set user info
+        setUserInfo(collab.awareness, {
+          name: `User ${Math.floor(Math.random() * 1000)}`,
+        });
+        
+        // Track connected users
+        collab.awareness.on('change', () => {
+          setConnectedUsers(collab.awareness.getStates().size);
+        });
+        
+        logger(`🤝 Joined collaboration room: ${urlRoomId}`, 'highlight');
+      } catch (err) {
+        console.error('Failed to initialize collaboration:', err);
+        logger(`⚠️ Could not connect to collaboration server. Make sure it's running!`, 'warning');
+      }
+    }
+    
     const editor = new StrudelMirror({
       sync: isSyncEnabled,
       defaultOutput,
@@ -84,6 +124,7 @@ export function useReplContext() {
       pattern: silence,
       drawTime,
       drawContext,
+      collaboration,
       prebake: async () => Promise.all([modulesLoading, presets]),
       onUpdateState: (state) => {
         setReplState({ ...state });
@@ -141,7 +182,11 @@ export function useReplContext() {
         code = '$: s("[bd <hh oh>]*2").bank("tr909").dec(.4)';
         msg = `Default code has been loaded`;
       }
-      editor.setCode(code);
+      
+      // Only set code if not in collaboration mode (Yjs will sync it)
+      if (!collaboration) {
+        editor.setCode(code);
+      }
       setDocumentTitle(code);
       logger(`Welcome to Strudel! ${msg} Press play or hit ctrl+enter to run it!`, 'highlight');
     });
@@ -153,6 +198,12 @@ export function useReplContext() {
   const { started, isDirty, error, activeCode, pending } = replState;
   const editorRef = useRef();
   const containerRef = useRef();
+  
+  // Collaboration state
+  const [isCollaborating, setIsCollaborating] = useState(false);
+  const [roomId, setRoomId] = useState(null);
+  const [connectedUsers, setConnectedUsers] = useState(0);
+  const collabProviderRef = useRef(null);
 
   // this can be simplified once SettingsTab has been refactored to change codemirrorSettings directly!
   // this will be the case when the main repl is being replaced
@@ -215,6 +266,29 @@ export function useReplContext() {
   };
 
   const handleShare = async () => shareCode(replState.code);
+  
+  // Collaboration handlers
+  const handleStartCollaboration = () => {
+    const newRoomId = generateRoomId();
+    updateUrlWithRoomId(newRoomId);
+    // Reload to reinitialize with collaboration
+    window.location.reload();
+  };
+  
+  const handleStopCollaboration = () => {
+    if (collabProviderRef.current) {
+      collabProviderRef.current.provider.destroy();
+      collabProviderRef.current = null;
+    }
+    setIsCollaborating(false);
+    setRoomId(null);
+    setConnectedUsers(0);
+    removeRoomIdFromUrl();
+    logger('👋 Left collaboration room', 'highlight');
+  };
+  
+  const shareableUrl = roomId ? getShareableUrl(roomId) : '';
+  
   const context = {
     started,
     pending,
@@ -229,6 +303,13 @@ export function useReplContext() {
     error,
     editorRef,
     containerRef,
+    // Collaboration
+    isCollaborating,
+    roomId,
+    connectedUsers,
+    shareableUrl,
+    handleStartCollaboration,
+    handleStopCollaboration,
   };
   return context;
 }

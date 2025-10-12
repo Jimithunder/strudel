@@ -25,6 +25,8 @@ import { sliderPlugin, updateSliderWidgets } from './slider.mjs';
 import { widgetPlugin, updateWidgets } from './widget.mjs';
 import { persistentAtom } from '@nanostores/persistent';
 import { basicSetup } from './basicSetup.mjs';
+import { yCollab } from 'y-codemirror.next';
+import * as Y from 'yjs';
 
 const extensions = {
   isLineWrappingEnabled: (on) => (on ? EditorView.lineWrapping : []),
@@ -73,62 +75,71 @@ export const codemirrorSettings = persistentAtom('codemirror-settings', defaultS
 });
 
 // https://codemirror.net/docs/guide/
-export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, root, mondo }) {
+export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, root, mondo, collabConfig = null }) {
   const settings = codemirrorSettings.get();
   const initialSettings = Object.keys(compartments).map((key) =>
     compartments[key].of(extensions[key](parseBooleans(settings[key]))),
   );
 
   initTheme(settings.theme);
-  let state = EditorState.create({
-    doc: initialCode,
-    extensions: [
-      /* search(),
-      highlightSelectionMatches(), */
-      ...initialSettings,
-      basicSetup,
-      mondo ? [] : javascript(),
-      javascriptLanguage.data.of({
-        closeBrackets: { brackets: ['(', '[', '{', "'", '"', '<'] },
-        bracketMatching: { brackets: ['(', '[', '{', "'", '"', '<'] },
-      }),
-      sliderPlugin,
-      widgetPlugin,
-      // indentOnInput(), // works without. already brought with javascript extension?
-      // bracketMatching(), // does not do anything
-      syntaxHighlighting(defaultHighlightStyle),
-      EditorView.updateListener.of((v) => onChange(v)),
-      drawSelection({ cursorBlinkRate: 0 }),
-      Prec.highest(
-        keymap.of([
-          {
-            key: 'Ctrl-Enter',
-            run: () => onEvaluate?.(),
-          },
-          {
-            key: 'Alt-Enter',
-            run: () => onEvaluate?.(),
-          },
-          {
-            key: 'Ctrl-.',
-            run: () => onStop?.(),
-          },
-          {
-            key: 'Alt-.',
-            preventDefault: true,
-            run: () => onStop?.(),
-          },
-          /* {
-          key: 'Ctrl-Shift-.',
-          run: () => (onPanic ? onPanic() : onStop?.()),
+  
+  // Build the extensions array
+  const editorExtensions = [
+    /* search(),
+    highlightSelectionMatches(), */
+    ...initialSettings,
+    basicSetup,
+    mondo ? [] : javascript(),
+    javascriptLanguage.data.of({
+      closeBrackets: { brackets: ['(', '[', '{', "'", '"', '<'] },
+      bracketMatching: { brackets: ['(', '[', '{', "'", '"', '<'] },
+    }),
+    sliderPlugin,
+    widgetPlugin,
+    // indentOnInput(), // works without. already brought with javascript extension?
+    // bracketMatching(), // does not do anything
+    syntaxHighlighting(defaultHighlightStyle),
+    EditorView.updateListener.of((v) => onChange(v)),
+    drawSelection({ cursorBlinkRate: 0 }),
+    Prec.highest(
+      keymap.of([
+        {
+          key: 'Ctrl-Enter',
+          run: () => onEvaluate?.(),
         },
         {
-          key: 'Ctrl-Shift-Enter',
-          run: () => (onReEvaluate ? onReEvaluate() : onEvaluate?.()),
-        }, */
-        ]),
-      ),
-    ],
+          key: 'Alt-Enter',
+          run: () => onEvaluate?.(),
+        },
+        {
+          key: 'Ctrl-.',
+          run: () => onStop?.(),
+        },
+        {
+          key: 'Alt-.',
+          preventDefault: true,
+          run: () => onStop?.(),
+        },
+        /* {
+        key: 'Ctrl-Shift-.',
+        run: () => (onPanic ? onPanic() : onStop?.()),
+      },
+      {
+        key: 'Ctrl-Shift-Enter',
+        run: () => (onReEvaluate ? onReEvaluate() : onEvaluate?.()),
+      }, */
+      ]),
+    ),
+  ];
+
+  // Add collaboration extension if config is provided
+  if (collabConfig && collabConfig.ytext && collabConfig.awareness) {
+    editorExtensions.push(yCollab(collabConfig.ytext, collabConfig.awareness));
+  }
+
+  let state = EditorState.create({
+    doc: collabConfig ? '' : initialCode, // If using Yjs, start with empty doc (content comes from Yjs)
+    extensions: editorExtensions,
   });
 
   return new EditorView({
@@ -150,6 +161,7 @@ export class StrudelMirror {
       prebake,
       bgFill = true,
       solo = true,
+      collaboration = null,
       ...replOptions
     } = options;
     this.code = initialCode;
@@ -161,6 +173,7 @@ export class StrudelMirror {
     this.onDraw = onDraw || this.draw;
     this.id = id || s4();
     this.solo = solo;
+    this.collaboration = collaboration;
 
     this.drawer = new Drawer((haps, time, _, painters) => {
       const currentFrame = haps.filter((hap) => hap.isActive(time));
@@ -225,7 +238,16 @@ export class StrudelMirror {
       onEvaluate: () => this.evaluate(),
       onStop: () => this.stop(),
       mondo: replOptions.mondo,
+      collabConfig: collaboration ? {
+        ytext: collaboration.ytext,
+        awareness: collaboration.awareness,
+      } : null,
     });
+    
+    // If collaboration is enabled, sync initial code to Yjs
+    if (collaboration && collaboration.ytext && initialCode) {
+      collaboration.ytext.insert(0, initialCode);
+    }
     const cmEditor = this.root.querySelector('.cm-editor');
     if (cmEditor) {
       this.root.style.display = 'block';
@@ -351,6 +373,10 @@ export class StrudelMirror {
   }
   clear() {
     this.onStartRepl && document.removeEventListener('start-repl', this.onStartRepl);
+    // Clean up collaboration
+    if (this.collaboration?.provider) {
+      this.collaboration.provider.destroy();
+    }
   }
   getCursorLocation() {
     return this.editor.state.selection.main.head;
