@@ -64,16 +64,10 @@ export function Header({ context, embedded = false }) {
           >
             <span className="block text-foreground rotate-90">꩜</span>
           </div>
-          {!isZen && (
-            <div className="space-x-2">
-              <span className="">strudel</span>
-              <span className="text-sm font-medium">REPL</span>
-              {!isEmbedded && isButtonRowHidden && (
-                <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium">
-                  DOCS
-                </a>
-              )}
-            </div>
+          {!isZen && !isEmbedded && isButtonRowHidden && (
+            <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium">
+              DOCS
+            </a>
           )}
         </h1>
       </div>

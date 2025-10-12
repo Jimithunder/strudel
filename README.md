@@ -1,14 +1,3 @@
-# strudel
-
-Live coding patterns on the web
-https://strudel.cc/
-
-- Try it here: <https://strudel.cc>
-- Docs: <https://strudel.cc/learn>
-- Technical Blog Post: <https://loophole-letters.vercel.app/strudel>
-- 1 Year of Strudel Blog Post: <https://loophole-letters.vercel.app/strudel1year>
-- 2 Years of Strudel Blog Post: <https://strudel.cc/blog/#year-2>
-
 ## Running Locally
 
 After cloning the project, you can run the REPL locally:
@@ -57,6 +46,7 @@ cd packages/collab && npm run server -- --port 1234 --debug
 - **Cursor sharing**: See where other users are typing
 - **Room-based sessions**: Each collaboration session has a unique room ID
 - **No account required**: Just share the URL and start collaborating
+- **Generative AI**: You can generate code snippets using your gen ai api key
 
 ## Using Strudel In Your Project
 
@@ -68,9 +58,6 @@ You will need to abide by the terms of the [GNU Affero Public Licence v3](LICENS
 
 Licensing info for the default sound banks can be found over on the [dough-samples](https://github.com/felixroos/dough-samples/blob/main/README.md) repository.
 
-## Contributing
-
-There are many ways to contribute to this project! See [contribution guide](./CONTRIBUTING.md). You can find the full list of contributors [here](https://codeberg.org/uzu/strudel/activity/contributors).
 
 ## Community
 
