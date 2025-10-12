@@ -1,0 +1,35 @@
+{
+  "name": "@strudel/collab",
+  "version": "1.0.0",
+  "description": "Real-time collaboration for Strudel using Yjs",
+  "main": "collab.mjs",
+  "type": "module",
+  "scripts": {
+    "server": "node server.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://codeberg.org/uzu/strudel.git"
+  },
+  "keywords": [
+    "tidalcycles",
+    "strudel",
+    "collaboration",
+    "yjs",
+    "crdt"
+  ],
+  "author": "Strudel contributors",
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://codeberg.org/uzu/strudel/issues"
+  },
+  "homepage": "https://codeberg.org/uzu/strudel#readme",
+  "dependencies": {
+    "ws": "^8.18.0",
+    "y-websocket": "^2.0.4",
+    "yjs": "^13.6.20",
+    "lib0": "^0.2.97",
+    "y-protocols": "^1.0.6"
+  }
+}
+

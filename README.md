@@ -24,6 +24,40 @@ After cloning the project, you can run the REPL locally:
    pnpm dev
    ```
 
+## Real-time Collaboration
+
+Strudel supports real-time collaborative editing using Yjs and WebSockets, allowing multiple users to edit the same code simultaneously.
+
+### Starting the Collaboration Server
+
+To enable collaboration, you need to run the collaboration server:
+
+```bash
+pnpm collab
+```
+
+The server will start on port 1234 by default. You can customize the port and enable debug mode:
+
+```bash
+cd packages/collab && npm run server -- --port 1234 --debug
+```
+
+### Using Collaboration
+
+1. Start the collaboration server (see above)
+2. Open the Strudel REPL in your browser
+3. Click the "Collaborate" button in the header
+4. Share the generated URL with others
+5. All participants can now edit the code together in real-time!
+
+### Features
+
+- **Real-time synchronization**: Changes are instantly synced between all connected users
+- **Conflict-free editing**: Uses CRDTs (Conflict-free Replicated Data Types) via Yjs
+- **Cursor sharing**: See where other users are typing
+- **Room-based sessions**: Each collaboration session has a unique room ID
+- **No account required**: Just share the URL and start collaborating
+
 ## Using Strudel In Your Project
 
 This project is organized into many [packages](./packages), which are also available on [npm](https://www.npmjs.com/search?q=%40strudel).
