@@ -10920,42 +10920,7 @@ exports[`runs examples > example "take" example index 2 1`] = `
 ]
 `;
 
-exports[`runs examples > example "timeline" example index 0 1`] = `
-[
-  "[ 0/1 → 1/8 | s:tri note:G#3 cutoff:400 room:2 timeline:1 offset:0 ]",
-  "[ 1/8 → 1/4 | s:tri note:A#4 cutoff:400 room:2 timeline:1 offset:0 ]",
-  "[ 1/4 → 3/8 | s:tri note:D#4 cutoff:400 room:2 timeline:1 offset:0 ]",
-  "[ 3/8 → 1/2 | s:tri note:D#4 cutoff:400 room:2 timeline:1 offset:0 ]",
-  "[ 1/2 → 5/8 | s:tri note:C#4 cutoff:400 room:2 timeline:1 offset:0 ]",
-  "[ 5/8 → 3/4 | s:tri note:A#3 cutoff:400 room:2 timeline:1 offset:0 ]",
-  "[ 3/4 → 7/8 | s:tri note:B3 cutoff:400 room:2 timeline:1 offset:0 ]",
-  "[ 7/8 → 1/1 | s:tri note:D#4 cutoff:400 room:2 timeline:1 offset:0 ]",
-  "[ 1/1 → 9/8 | s:tri note:G#3 cutoff:400 room:2 timeline:-1 offset:1 ]",
-  "[ 9/8 → 5/4 | s:tri note:A#4 cutoff:400 room:2 timeline:-1 offset:1 ]",
-  "[ 5/4 → 11/8 | s:tri note:D#4 cutoff:400 room:2 timeline:-1 offset:1 ]",
-  "[ 11/8 → 3/2 | s:tri note:D#4 cutoff:400 room:2 timeline:-1 offset:1 ]",
-  "[ 3/2 → 13/8 | s:tri note:C#4 cutoff:400 room:2 timeline:-1 offset:1 ]",
-  "[ 13/8 → 7/4 | s:tri note:A#3 cutoff:400 room:2 timeline:-1 offset:1 ]",
-  "[ 7/4 → 15/8 | s:tri note:B3 cutoff:400 room:2 timeline:-1 offset:1 ]",
-  "[ 15/8 → 2/1 | s:tri note:D#4 cutoff:400 room:2 timeline:-1 offset:1 ]",
-  "[ 2/1 → 17/8 | s:tri note:G#3 cutoff:400 room:2 timeline:1 offset:2 ]",
-  "[ 17/8 → 9/4 | s:tri note:A#4 cutoff:400 room:2 timeline:1 offset:2 ]",
-  "[ 9/4 → 19/8 | s:tri note:D#4 cutoff:400 room:2 timeline:1 offset:2 ]",
-  "[ 19/8 → 5/2 | s:tri note:D#4 cutoff:400 room:2 timeline:1 offset:2 ]",
-  "[ 5/2 → 21/8 | s:tri note:C#4 cutoff:400 room:2 timeline:1 offset:2 ]",
-  "[ 21/8 → 11/4 | s:tri note:A#3 cutoff:400 room:2 timeline:1 offset:2 ]",
-  "[ 11/4 → 23/8 | s:tri note:B3 cutoff:400 room:2 timeline:1 offset:2 ]",
-  "[ 23/8 → 3/1 | s:tri note:D#4 cutoff:400 room:2 timeline:1 offset:2 ]",
-  "[ 3/1 → 25/8 | s:tri note:G#3 cutoff:400 room:2 timeline:2 offset:3 ]",
-  "[ 25/8 → 13/4 | s:tri note:A#4 cutoff:400 room:2 timeline:2 offset:3 ]",
-  "[ 13/4 → 27/8 | s:tri note:D#4 cutoff:400 room:2 timeline:2 offset:3 ]",
-  "[ 27/8 → 7/2 | s:tri note:D#4 cutoff:400 room:2 timeline:2 offset:3 ]",
-  "[ 7/2 → 29/8 | s:tri note:C#4 cutoff:400 room:2 timeline:2 offset:3 ]",
-  "[ 29/8 → 15/4 | s:tri note:A#3 cutoff:400 room:2 timeline:2 offset:3 ]",
-  "[ 15/4 → 31/8 | s:tri note:B3 cutoff:400 room:2 timeline:2 offset:3 ]",
-  "[ 31/8 → 4/1 | s:tri note:D#4 cutoff:400 room:2 timeline:2 offset:3 ]",
-]
-`;
+exports[`runs examples > example "timeline" example index 0 1`] = `[]`;
 
 exports[`runs examples > example "timeline" example index 1 1`] = `
 [
