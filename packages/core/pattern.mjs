@@ -8,7 +8,6 @@ import TimeSpan from './timespan.mjs';
 import Fraction, { isFraction, lcm } from './fraction.mjs';
 import Hap from './hap.mjs';
 import State from './state.mjs';
-import { getTime } from './time.mjs';
 import { unionWithObj } from './value.mjs';
 
 import {
@@ -3560,32 +3559,47 @@ export const TIMELINES = {
  * // and it will always start on note 0
  * // $: n("[0 .. 6]/4").scale("F:minor").timeline(2)
  */
-export const timeline = register('timeline', (id, pat) => {
-  if (typeof id !== 'number' || id === 0) {
-    logger(
-      `[query] ${id} is not a valid timeline id. Please ensure it is a non-zero number. Defaulting to timeline 1.`,
-    );
-    id = 1;
-  }
-  const { state, polarities } = TIMELINES;
-  const key = Math.abs(id);
-  // We let the pattern run until the sign switches
-  const p = id > 0 ? 1 : -1;
-  let t = polarities[key] === p ? state[key] : Math.ceil(getTime());
-  return (
-    pat
-      .late(t)
+export const timeline = register(
+  'timeline',
+  (idPat, pat) => {
+    const { state, polarities } = TIMELINES;
+    const data = idPat.withHap((hap) => {
+      let id = hap.value;
+      if (typeof id !== 'number' || id === 0) {
+        logger(
+          `[query] ${id} is not a valid timeline id. Please ensure it is a non-zero number. Defaulting to timeline 1.`,
+        );
+        id = 1;
+      }
+      const key = Math.abs(id);
+      const p = id > 0 ? 1 : -1; // lowercase is current polarity / time, upper is cached
+      const t = Number(hap.whole.begin);
+      const P = polarities[key] ?? p;
+      const T = state[key] ?? t; // align the pattern with the next cycle
+      hap.value = {
+        // We let the pattern run until the sign switches
+        offset: P === p ? T : t,
+        id,
+      };
+      return hap;
+    });
+    const times = data.withValue((v) => v.offset);
+    return pat
+      .late(times)
+      .withValue((v) => (d) => ({ ...v, timeline: d.id, offset: d.offset }))
+      .appLeft(data)
       .onTrigger((hap) => {
-        const T = Number(hap.part.begin);
+        const { timeline: id, offset } = hap.value;
+        const key = Math.abs(id);
+        const polarity = Math.sign(id);
         // Set state on the first trigger
-        state[key] ??= T;
-        polarities[key] ??= p;
-        if (polarities[key] !== p) {
-          state[key] = T;
+        state[key] ??= offset;
+        polarities[key] ??= polarity;
+        if (polarities[key] !== polarity) {
+          state[key] = offset;
         }
-        polarities[key] = p;
-      }, false)
-      // Add labels
-      .withValue((v) => ({ ...v, timeline: id, offset: t }))
-  );
-});
+        polarities[key] = polarity;
+      }, false);
+  },
+  false,
+);
