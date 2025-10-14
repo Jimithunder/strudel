@@ -3646,10 +3646,13 @@ export const timeline = register('timeline', (id, pat) => {
   const { state, polarities } = TIMELINES;
   // We let the pattern run until the sign flips
   const cps = TIMELINES.cps[key] ?? TIMELINES._globalCps;
-  const offsets = pat.withHap((hap) => {
-    hap.value = polarities[key] !== polarity ? Number(hap.whole.begin) : state[key];
-    return hap;
-  });
+  const offsets = pat
+    .withHaps((haps) =>
+      groupHapsBy((a, b) => a.whole.begin.equals(b.whole.begin), haps).map(([firstHap]) =>
+        firstHap.withValue(() => (polarities[key] !== polarity ? Number(firstHap.whole.begin) : state[key])),
+      ),
+    )
+    .stripContext();
   return pat
     .late(offsets)
     .withValue((v) => (offset) => ({ ...v, timeline: id, offset }))
