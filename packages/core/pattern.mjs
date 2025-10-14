@@ -3644,15 +3644,15 @@ const _timeline = (id, pat, quantize = false) => {
   const key = Math.abs(id);
   const polarity = id > 0 ? 1 : -1;
   const { state, polarities } = TIMELINES;
-  // We let the pattern run until the sign flips
   const cps = TIMELINES.cps[key] ?? TIMELINES._globalCps;
   const offsets = pat
     .withHaps((haps) =>
       groupHapsBy((a, b) => a.whole.begin.equals(b.whole.begin), haps).map(([firstHap]) =>
         firstHap.withValue(() => {
           const t = Number(firstHap.whole.begin);
-          const tQuantized = quantize ? Math.floor(t) + 1 : t;
-          return polarities[key] !== polarity ? tQuantized : state[key];
+          const tQuantized = quantize ? Math.ceil(getTime()) : t;
+          // We let the pattern run until the sign flips
+          return polarities[key] === polarity ? state[key] : tQuantized;
         }),
       ),
     )
@@ -3663,12 +3663,13 @@ const _timeline = (id, pat, quantize = false) => {
     .withValue((v) => (offset) => ({ ...v, timeline: id, timelineOffset: offset }))
     .appLeft(offsets)
     .onTrigger((hap) => {
-      const offset = Number(hap.whole.begin);
+      const t = Number(hap.whole.begin);
+      const tQuantized = quantize ? Math.ceil(t) : t;
       // Set state on the first trigger
-      state[key] ??= offset;
+      state[key] ??= tQuantized;
       polarities[key] ??= polarity;
       if (polarities[key] !== polarity) {
-        state[key] = offset;
+        state[key] = t;
       }
       polarities[key] = polarity;
     }, false);
