@@ -101,8 +101,9 @@ export function repl({
   const pause = () => scheduler.pause();
   const toggle = () => scheduler.toggle();
   const setCps = (cps) => {
-    scheduler.setCps(unpure(cps));
-    TIMELINES._globalCps = cps;
+    const cpsVal = unpure(cps);
+    scheduler.setCps(cpsVal);
+    TIMELINES._globalCps = cpsVal;
     return silence;
   };
 
@@ -117,8 +118,9 @@ export function repl({
    * $: s("bd*4,[- sd]*2").bank('tr707')
    */
   const setCpm = (cpm) => {
-    scheduler.setCps(unpure(cpm) / 60);
-    TIMELINES._globalCps = cpm / 60;
+    const cpsVal = unpure(cpm) / 60;
+    scheduler.setCps(cpsVal);
+    TIMELINES._globalCps = cpsVal;
     return silence;
   };
 
