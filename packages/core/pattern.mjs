@@ -9,6 +9,7 @@ import Fraction, { isFraction, lcm } from './fraction.mjs';
 import Hap from './hap.mjs';
 import State from './state.mjs';
 import { unionWithObj } from './value.mjs';
+import { getTime } from './time.mjs';
 
 import {
   uniqsortr,
@@ -3614,26 +3615,6 @@ export const TIMELINES = {
   _globalCps: 60, // will be overwritten by REPL
 };
 
-/**
- * Aligns the pattern with the specified `timeline` by ID.
- *
- * More specifically, if a timeline ID is encountered for the first time, that moment
- * in time is marked as the "start" of that pattern. Thereafter, any other patterns aligned
- * with that same id will begin at that same moment in time.
- *
- * If the sign of the id changes (positive to negative or vice versa), we reset the timeline.
- *
- * @param {number | Pattern} id Timeline id. Must be a non-zero number. Switch signs to reset.
- * @returns Pattern
- * @example
- * s("tri").seg(8).n(irand(12)).scale("G#:minor").lpf(400).room(2)
- *   .timeline("<1 -1 1 2>")
- * @example
- * $: n("[0 .. 6]/4").scale("F:minor")
- * // Execute the following line at any point in the session
- * // and it will always start on note 0
- * // $: n("[0 .. 6]/4").scale("F:minor").timeline(2)
- */
 const _timeline = (id, pat, quantize = false) => {
   if (typeof id !== 'number' || id === 0) {
     logger(
@@ -3674,6 +3655,28 @@ const _timeline = (id, pat, quantize = false) => {
       polarities[key] = polarity;
     }, false);
 };
+
+/**
+ * Aligns the pattern with the specified `timeline` by ID.
+ *
+ * More specifically, if a timeline ID is encountered for the first time, that moment
+ * in time is marked as the "start" of that pattern. Thereafter, any other patterns aligned
+ * with that same id will begin at that same moment in time.
+ *
+ * If the sign of the id changes (positive to negative or vice versa), we reset the timeline.
+ *
+ * @name timeline
+ * @param {number | Pattern} id Timeline id. Must be a non-zero number. Switch signs to reset.
+ * @returns Pattern
+ * @example
+ * s("tri").seg(8).n(irand(12)).scale("G#:minor").lpf(400).room(2)
+ *   .timeline("<1 -1 1 2>")
+ * @example
+ * $: n("[0 .. 6]/4").scale("F:minor")
+ * // Execute the following line at any point in the session
+ * // and it will always start on note 0
+ * // $: n("[0 .. 6]/4").scale("F:minor").timeline(2)
+ */
 export const timeline = register('timeline', (id, pat) => _timeline(id, pat, true));
 
 /**
