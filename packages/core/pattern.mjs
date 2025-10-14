@@ -3645,10 +3645,9 @@ export const timeline = register('timeline', (id, pat) => {
   const polarity = id > 0 ? 1 : -1;
   const { state, polarities } = TIMELINES;
   // We let the pattern run until the sign flips
-  const flipped = polarities[key] !== polarity;
   const cps = TIMELINES.cps[key] ?? TIMELINES._globalCps;
   const offsets = pat.withHap((hap) => {
-    hap.value = flipped ? Number(hap.whole.begin) : state[key];
+    hap.value = polarities[key] !== polarity ? Number(hap.whole.begin) : state[key];
     return hap;
   });
   return pat
@@ -3661,7 +3660,7 @@ export const timeline = register('timeline', (id, pat) => {
       // Set state on the first trigger
       state[key] ??= offset;
       polarities[key] ??= polarity;
-      if (flipped) {
+      if (polarities[key] !== polarity) {
         state[key] = offset;
       }
       polarities[key] = polarity;
