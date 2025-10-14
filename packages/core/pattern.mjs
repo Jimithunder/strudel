@@ -3610,6 +3610,8 @@ for (const name of distAlgoNames) {
 export const TIMELINES = {
   state: {},
   polarities: {},
+  cps: {},
+  _globalCps: 60, // will be overwritten by REPL
 };
 
 /**
@@ -3633,35 +3635,33 @@ export const TIMELINES = {
  * // $: n("[0 .. 6]/4").scale("F:minor").timeline(2)
  */
 export const timeline = register('timeline', (id, pat) => {
+  if (typeof id !== 'number' || id === 0) {
+    logger(
+      `[query] ${id} is not a valid timeline id. Please ensure it is a non-zero number. Defaulting to timeline 1.`,
+    );
+    id = 1;
+  }
+  const key = Math.abs(id);
+  const polarity = id > 0 ? 1 : -1;
+  const { state, polarities } = TIMELINES;
+  // We let the pattern run until the sign flips
+  const flipped = polarities[key] !== polarity;
+  const cps = TIMELINES.cps[key] ?? TIMELINES._globalCps;
   const offsets = pat.withHap((hap) => {
-    if (typeof id !== 'number' || id === 0) {
-      logger(
-        `[query] ${id} is not a valid timeline id. Please ensure it is a non-zero number. Defaulting to timeline 1.`,
-      );
-      id = 1;
-    }
-    const { state, polarities } = TIMELINES;
-    const key = Math.abs(id);
-    // We let the pattern run until the sign switches
-    const p = id > 0 ? 1 : -1;
-    let t = polarities[key] === p ? state[key] : Number(hap.whole.begin);
-    hap.value = t;
+    hap.value = flipped ? Number(hap.whole.begin) : state[key];
     return hap;
   });
   return pat
     .late(offsets)
-    .withValue((v) => (offset) => ({ ...v, offset }))
+    .withValue((v) => (offset) => ({ ...v, timeline: id, offset, timelineCps: cps }))
     .appLeft(offsets)
+    .cps(cps)
     .onTrigger((hap) => {
-      const { state, polarities } = TIMELINES;
       const { offset } = hap.value;
-      const key = Math.abs(id);
-      const polarity = Math.sign(id);
       // Set state on the first trigger
       state[key] ??= offset;
       polarities[key] ??= polarity;
-      if (polarities[key] !== polarity) {
-        logger(`updating state ${key}, ${offset}, ${polarity}`);
+      if (flipped) {
         state[key] = offset;
       }
       polarities[key] = polarity;

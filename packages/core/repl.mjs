@@ -56,21 +56,23 @@ export function repl({
         // Reset timeline state
         TIMELINES.state = {};
         TIMELINES.polarities = {};
+        TIMELINES.cps = {};
       }
     },
     setInterval,
     clearInterval,
     beforeStart,
   };
-
+  
   // NeoCyclist uses a shared worker to communicate between instances, which is not supported on mobile chrome
   const scheduler =
-    sync && typeof SharedWorker != 'undefined' ? new NeoCyclist(schedulerOptions) : new Cyclist(schedulerOptions);
+  sync && typeof SharedWorker != 'undefined' ? new NeoCyclist(schedulerOptions) : new Cyclist(schedulerOptions);
   let pPatterns = {};
   let anonymousIndex = 0;
   let allTransform;
   let eachTransform;
-
+  TIMELINES._globalCps = scheduler.cps;
+  
   const hush = function () {
     pPatterns = {};
     anonymousIndex = 0;
@@ -100,6 +102,7 @@ export function repl({
   const toggle = () => scheduler.toggle();
   const setCps = (cps) => {
     scheduler.setCps(unpure(cps));
+    TIMELINES._globalCps = cps;
     return silence;
   };
 
@@ -115,6 +118,33 @@ export function repl({
    */
   const setCpm = (cpm) => {
     scheduler.setCps(unpure(cpm) / 60);
+    TIMELINES._globalCps = cpm / 60;
+    return silence;
+  };
+
+  /**
+   * Set cpm for timeline
+   *
+   * @name timelinecpm
+   * @alias timelineCpm
+   * @param {number} id timeline id to apply it to
+   * @param {number} cpm cycles per minute
+   */
+  const timelineCpm = (id, cpm) => {
+    TIMELINES.cps[id] = cpm / 60;
+    return silence;
+  };
+
+  /**
+   * Set cps for timeline
+   *
+   * @name timelinecps
+   * @alias timelineCps
+   * @param {number} id timeline id to apply it to
+   * @param {number} cps cycles per second
+   */
+  const timelineCps = (id, cps) => {
+    TIMELINES.cps[id] = cps;
     return silence;
   };
 
@@ -199,6 +229,10 @@ export function repl({
       setcps: setCps,
       setCpm,
       setcpm: setCpm,
+      timelineCps,
+      timelinecps: timelineCps,
+      timelineCpm,
+      timelinecpm: timelineCpm,
     });
   };
 
