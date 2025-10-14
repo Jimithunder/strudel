@@ -3634,7 +3634,7 @@ export const TIMELINES = {
  * // and it will always start on note 0
  * // $: n("[0 .. 6]/4").scale("F:minor").timeline(2)
  */
-export const timeline = register('timeline', (id, pat) => {
+const _timeline = (id, pat, quantize = false) => {
   if (typeof id !== 'number' || id === 0) {
     logger(
       `[query] ${id} is not a valid timeline id. Please ensure it is a non-zero number. Defaulting to timeline 1.`,
@@ -3646,18 +3646,13 @@ export const timeline = register('timeline', (id, pat) => {
   const { state, polarities } = TIMELINES;
   // We let the pattern run until the sign flips
   const cps = TIMELINES.cps[key] ?? TIMELINES._globalCps;
-  const offsets = pat
-    .withHaps((haps) =>
-      groupHapsBy((a, b) => a.whole.begin.equals(b.whole.begin), haps).map(([firstHap]) =>
-        firstHap.withValue(() => (polarities[key] !== polarity ? Number(firstHap.whole.begin) : state[key])),
-      ),
-    )
-    .stripContext();
+  const now = getTime();
+  const resetTime = quantize ? Math.ceil(now) : now;
+  let offset = polarities[key] === polarity ? state[key] : now;
   return pat
-    .late(offsets)
-    .withValue((v) => (offset) => ({ ...v, timeline: id, offset }))
-    .appLeft(offsets)
-    .cps(cps)
+    .cpm(cps * 60)
+    .late(offset)
+    .withValue((v) => ({ ...v, timeline: id, timelineOffset: offset }))
     .onTrigger((hap) => {
       const { offset } = hap.value;
       // Set state on the first trigger
@@ -3668,4 +3663,13 @@ export const timeline = register('timeline', (id, pat) => {
       }
       polarities[key] = polarity;
     }, false);
-});
+};
+export const timeline = register('timeline', (id, pat) => _timeline(id, pat, true));
+
+/**
+ * The same as `timeline`, but not quantized to the next cycle.
+ *
+ * @param {number | Pattern} id Timeline id. Must be a non-zero number. Switch signs to reset.
+ * @returns Pattern
+ */
+export const timelineF = register('timelineF', (id, pat) => _timeline(id, pat));
