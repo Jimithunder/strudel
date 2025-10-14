@@ -63,16 +63,16 @@ export function repl({
     clearInterval,
     beforeStart,
   };
-  
+
   // NeoCyclist uses a shared worker to communicate between instances, which is not supported on mobile chrome
   const scheduler =
-  sync && typeof SharedWorker != 'undefined' ? new NeoCyclist(schedulerOptions) : new Cyclist(schedulerOptions);
+    sync && typeof SharedWorker != 'undefined' ? new NeoCyclist(schedulerOptions) : new Cyclist(schedulerOptions);
   let pPatterns = {};
   let anonymousIndex = 0;
   let allTransform;
   let eachTransform;
   TIMELINES._globalCps = scheduler.cps;
-  
+
   const hush = function () {
     pPatterns = {};
     anonymousIndex = 0;

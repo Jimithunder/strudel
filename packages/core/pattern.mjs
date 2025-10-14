@@ -3653,7 +3653,7 @@ export const timeline = register('timeline', (id, pat) => {
   });
   return pat
     .late(offsets)
-    .withValue((v) => (offset) => ({ ...v, timeline: id, offset, timelineCps: cps }))
+    .withValue((v) => (offset) => ({ ...v, timeline: id, offset }))
     .appLeft(offsets)
     .cps(cps)
     .onTrigger((hap) => {
