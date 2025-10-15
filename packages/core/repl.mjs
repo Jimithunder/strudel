@@ -56,7 +56,6 @@ export function repl({
         // Reset timeline state
         TIMELINES.state = {};
         TIMELINES.polarities = {};
-        TIMELINES.cps = {};
       }
     },
     setInterval,
