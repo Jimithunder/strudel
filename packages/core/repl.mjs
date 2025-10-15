@@ -132,7 +132,7 @@ export function repl({
   };
 
   /**
-   * Set the width of divisions for quantization of timelines on initialization.
+   * Set the width of divisions for quantization of timelines on reset.
    *
    * For example, if quantization is 4, then every 4th of a cycle is available as a location
    * to snap the start of the timeline to. Set to 0 for no grid.

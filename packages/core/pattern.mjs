@@ -3673,7 +3673,7 @@ export const timeline = register('timeline', (id, pat) => {
       state[key] ??= tQuantized;
       polarities[key] ??= polarity;
       if (polarities[key] !== polarity) {
-        state[key] = t;
+        state[key] = tQuantized;
       }
       polarities[key] = polarity;
     }, false);
