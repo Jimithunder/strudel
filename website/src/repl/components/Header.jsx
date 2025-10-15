@@ -8,7 +8,7 @@ const { BASE_URL } = import.meta.env;
 const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
 
 export function Header({ context, embedded = false }) {
-  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare } =
+  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare, handleSaveFile, handleLoadFile } =
     context;
   const isEmbedded = typeof window !== 'undefined' && (embedded || window.location !== window.parent.location);
   const { isZen, isButtonRowHidden, isCSSAnimationDisabled, fontFamily } = useSettings();
@@ -50,11 +50,29 @@ export function Header({ context, embedded = false }) {
             <span className="block text-foreground rotate-90">꩜</span>
           </div>
           {!isZen && (
-            <div className="space-x-2">
-              <span className="">strudel</span>
-              <span className="text-sm font-medium">REPL</span>
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <span className="">strudel</span>
+                <span className="text-sm font-medium">REPL</span>
+              </div>
+              <div className="flex items-center space-x-1.5 border-l border-gray-600 pl-3">
+                <button
+                  onClick={handleLoadFile}
+                  className="px-2 py-0.5 text-xs rounded font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                  title="Load from file"
+                >
+                  📂
+                </button>
+                <button
+                  onClick={handleSaveFile}
+                  className="px-2 py-0.5 text-xs rounded font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                  title="Save to file"
+                >
+                  💾
+                </button>
+              </div>
               {!isEmbedded && isButtonRowHidden && (
-                <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium">
+                <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium border-l border-gray-600 pl-3">
                   DOCS
                 </a>
               )}
