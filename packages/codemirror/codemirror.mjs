@@ -110,6 +110,11 @@ export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, roo
             run: () => onEvaluate?.(),
           },
           {
+            key: 'Ctrl-s',
+            run: () => onEvaluate?.(),
+            preventDefault: true,
+          },
+          {
             key: 'Ctrl-.',
             run: () => onStop?.(),
           },
