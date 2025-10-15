@@ -18,6 +18,7 @@ import { Pagination } from '../pagination/Pagination.jsx';
 import { useState } from 'react';
 import { useDebounce } from '../usedebounce.jsx';
 import cx from '@src/cx.mjs';
+import SyncPatternButton from './SyncPatternButton.jsx';
 
 export function PatternLabel({ pattern } /* : { pattern: Tables<'code'> } */) {
   const meta = useMemo(() => getMetadata(pattern.code), [pattern]);
@@ -38,16 +39,19 @@ export function PatternLabel({ pattern } /* : { pattern: Tables<'code'> } */) {
 
 function PatternButton({ showOutline, onClick, pattern, showHiglight }) {
   return (
-    <a
-      className={cx(
-        'mr-4 hover:opacity-50 cursor-pointer block',
-        showOutline && 'outline outline-1',
-        showHiglight && 'bg-selection',
-      )}
-      onClick={onClick}
-    >
-      <PatternLabel pattern={pattern} />
-    </a>
+    <div className="flex flex-row">
+      <a
+        className={cx(
+          'mr-4 hover:opacity-50 cursor-pointer block grow',
+          showOutline && 'outline outline-1',
+          showHiglight && 'bg-selection',
+        )}
+        onClick={onClick}
+      >
+        <PatternLabel pattern={pattern} />
+      </a>
+      {showHiglight && <SyncPatternButton patternId={pattern.id} pattern={pattern} />}
+    </div>
   );
 }
 
@@ -239,7 +243,6 @@ function PublicPatterns({ context }) {
 
 export function PatternsTab({ context }) {
   const { patternFilter } = useSettings();
-
   return (
     <div className="px-4 w-full text-foreground  space-y-2  flex flex-col overflow-hidden max-h-full h-full">
       <UserPatterns context={context} />
