@@ -186,3 +186,162 @@ export async function uploadSamplesToDB(config, files) {
     openDB(config, onOpened);
   });
 }
+
+/*========== Local File Syncing Utilities ==========*/
+
+/**
+ * Configuration settings for the indexedDb
+ * responsible for patternSyncHandlers
+ */
+export const patternSyncHandlerDBConfig = {
+  dbName: 'strudel-sync',
+  table: 'patterns',
+  columns: ['patternId', 'name', 'mime', 'lastModified', 'handle'],
+  version: 1,
+};
+
+/**
+ * **Saves the pattern sync**
+ *
+ * @description saves a handle in the idb for persisting file updates
+ * @param config The patternSyncDBConfig used by the SyncPatternButton
+ * @param {string} patternId The string ID of the pattern
+ */
+export async function savePatternSyncHandlerToDB(config = patternSyncHandlerDBConfig, rec) {
+  const { patternId, name, mime, lastModified, handle } = rec;
+  const id = String(patternId || '').trim();
+  if (!id) throw new Error('savePatternSyncToDB: patternId is required');
+
+  const onOpened = (objectStore) => {
+    objectStore.put({
+      id,
+      patternId: id,
+      name: name ?? '',
+      mime: mime ?? 'text/plain',
+      lastModified: Number(lastModified ?? Date.now()),
+      handle: handle ?? null,
+    });
+  };
+  openDB(config, onOpened);
+}
+
+/**
+ * **Loads the pattern sync**
+ *
+ * @requires showOpenFilePicker compatibility
+ * @description loads a saved handle in the idb for persisting file updates
+ * @param config The patternSyncDBConfig used by the SyncPatternButton
+ * @param {string} patternId The string ID of the pattern
+ */
+export async function loadPatternSyncHandlerFromDB(config = patternSyncHandlerDBConfig, patternId) {
+  // Wrap return in a promise for async evaluation
+  return new Promise((resolve, reject) => {
+    // open the objectStore
+    openDB(config, (objectStore) => {
+      // try and get the patternSyncHandler from the object store
+      const req = objectStore.get(patternId);
+
+      // reject if there are errors
+      req.onerror = (e) => reject(e?.target?.error);
+
+      // try load the pattern if successful
+      req.onsuccess = async (ev) => {
+        // ensure there is a valid target
+        const rec = ev.target.result;
+        if (!rec) return resolve(null);
+
+        // If handle exists and ensure handle is writable
+        try {
+          if (rec.handle?.queryPermission) {
+            const s = await rec.handle.queryPermission({ mode: 'readwrite' });
+            if (s !== 'granted') {
+              const r = await rec.handle.requestPermission({ mode: 'readwrite' });
+              if (r !== 'granted') return resolve(null);
+            }
+          }
+        } catch {
+          console.error('This feature is not available in non-chromium browsers');
+          reject(ev?.target?.error);
+          /* non-Chromium or sandbox will be unable to use this feature */
+        }
+        resolve(rec);
+      };
+    });
+  });
+}
+
+/**
+ * **Clears the pattern sync**
+ *
+ * @description removes the sync between local file and given pattern
+ * @param config The patternSyncDBConfig used by the SyncPatternButton
+ * @param {string} patternId The string ID of the pattern
+ */
+export async function clearPatternSyncHandler(config = patternSyncHandlerDBConfig, patternId) {
+  // check if the pattern id is valud
+  const id = String(patternId || '').trim();
+  if (!id) return;
+
+  // delete patternSyncHandler from the database
+  openDB(config, (objectStore) => objectStore.delete(id));
+}
+
+/**
+ * **Check if pattern is synced**
+ *
+ * @description Checks to see if sync handle exists for current pattern
+ * @note used to drive the sync vs unsync logic on the SyncPatternButton
+ * @param config The patternSyncDBConfig used by the SyncPatternButton
+ * @param {string} patternId The string ID of the pattern
+ * @returns promise which can be used to successfully evaluate if patternSync exists
+ */
+export async function hasPatternSyncHandler(config = patternSyncHandlerDBConfig, patternId) {
+  // Wrap return in a promise for async evaluation
+  return new Promise((resolve) => {
+    const id = String(patternId || '').trim();
+    if (!id) return resolve(false);
+    // open the objectStore
+    openDB(config, (objectStore) => {
+      // try and get the pattern from the object store
+      const req = objectStore.get(id);
+
+      // gracefully handle errors and return false in promise
+      req.onerror = (e) => {
+        console.warn('hasPatternSyncHandler error:', e.target.error);
+        resolve(false);
+      };
+
+      // return successful result in the promise
+      req.onsuccess = (e) => {
+        resolve(!!e.target.result);
+      };
+    });
+  });
+}
+
+/**
+ * Writes the synced pattern to the synced file (if supported)
+ *
+ * @note showOpenFilePicker browser compatibility required
+ * @notes writable file handles are currently only available on Chromium browsers
+ * @link https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker
+ * @param config The patternSyncDBConfig used by the SyncPatternButton
+ * @param {string} patternId The string ID of the pattern
+ * @param content The code to write to file
+ */
+export async function writeSyncedPattern(config = patternSyncHandlerDBConfig, patternId, content) {
+  // Get the patternSyncHandler
+  const rec = await loadPatternSyncHandlerFromDB(config, patternId);
+  // Check to see if the handler is writable
+  if (!rec?.handle?.createWritable) {
+    console.error(
+      'No writable handle stored for this pattern.\nThis is most likely caused by an unsupported browser.\nSee https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker for details.',
+    );
+    //Return after error to ensure wider error is not thrown.
+    return;
+  }
+  // write the code from the pattern to the syncedFile
+  const w = await rec.handle.createWritable();
+  await w.write(content);
+  await w.close();
+}
