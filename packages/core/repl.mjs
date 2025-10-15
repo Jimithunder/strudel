@@ -100,6 +100,14 @@ export function repl({
   const start = () => scheduler.start();
   const pause = () => scheduler.pause();
   const toggle = () => scheduler.toggle();
+
+  /**
+   * Changes the global tempo to the given cycles per second
+   *
+   * @name setCps
+   * @alias setcps
+   * @param {number} cps cycles per second
+   */
   const setCps = (cps) => {
     const cpsVal = unpure(cps);
     scheduler.setCps(cpsVal);
@@ -110,8 +118,8 @@ export function repl({
   /**
    * Changes the global tempo to the given cycles per minute
    *
-   * @name setcpm
-   * @alias setCpm
+   * @name setCpm
+   * @alias setcpm
    * @param {number} cpm cycles per minute
    * @example
    * setcpm(140/4) // =140 bpm in 4/4
@@ -125,10 +133,29 @@ export function repl({
   };
 
   /**
+   * Set the width of divisions for quantization of timelines on initialization.
+   *
+   * For example, if quantization is 4, then every 4th of a cycle is available as a location
+   * to snap the start of the timeline to. Set to 0 for no grid.
+   *
+   * @name timelineQuant
+   * @alias timelinequant
+   * @param {number} quant number of divisions to quantize to (e.g. 4 = fourths of a cycle)
+   */
+  const timelineQuant = (quant) => {
+    if (quant < 0) {
+      logger(`[eval] Timeline quantization must be positive, but received ${quant}`);
+      return;
+    }
+    TIMELINES._quantization = quant;
+    return silence;
+  };
+
+  /**
    * Set cpm for timeline
    *
-   * @name timelinecpm
-   * @alias timelineCpm
+   * @name timelineCpm
+   * @alias timelinecpm
    * @param {number} id timeline id to apply it to
    * @param {number} cpm cycles per minute
    */
@@ -140,8 +167,8 @@ export function repl({
   /**
    * Set cps for timeline
    *
-   * @name timelinecps
-   * @alias timelineCps
+   * @name timelineCps
+   * @alias timelinecps
    * @param {number} id timeline id to apply it to
    * @param {number} cps cycles per second
    */
@@ -235,6 +262,8 @@ export function repl({
       timelinecps: timelineCps,
       timelineCpm,
       timelinecpm: timelineCpm,
+      timelineQuant,
+      timelinequant: timelineQuant,
     });
   };
 

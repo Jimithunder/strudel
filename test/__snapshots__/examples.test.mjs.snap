@@ -9474,7 +9474,7 @@ exports[`runs examples > example "seqPLoop" example index 0 1`] = `
 ]
 `;
 
-exports[`runs examples > example "setcpm" example index 0 1`] = `
+exports[`runs examples > example "setCpm" example index 0 1`] = `
 [
   "[ 0/1 → 1/4 | s:bd bank:tr707 ]",
   "[ 1/4 → 1/2 | s:bd bank:tr707 ]",

@@ -3613,47 +3613,7 @@ export const TIMELINES = {
   polarities: {},
   cps: {},
   _globalCps: 60, // will be overwritten by REPL
-};
-
-const _timeline = (id, pat, quantize = false) => {
-  if (typeof id !== 'number' || id === 0) {
-    logger(
-      `[query] ${id} is not a valid timeline id. Please ensure it is a non-zero number. Defaulting to timeline 1.`,
-    );
-    id = 1;
-  }
-  const key = Math.abs(id);
-  const polarity = id > 0 ? 1 : -1;
-  const { state, polarities } = TIMELINES;
-  const cps = TIMELINES.cps[key] ?? TIMELINES._globalCps;
-  const offsets = pat
-    .withHaps((haps) =>
-      groupHapsBy((a, b) => a.whole.begin.equals(b.whole.begin), haps).map(([firstHap]) =>
-        firstHap.withValue(() => {
-          const t = Number(firstHap.whole.begin);
-          const tQuantized = quantize ? Math.ceil(getTime()) : t;
-          // We let the pattern run until the sign flips
-          return polarities[key] === polarity ? state[key] : tQuantized;
-        }),
-      ),
-    )
-    .stripContext();
-  return pat
-    .cpm(cps * 60)
-    .late(offsets)
-    .withValue((v) => (offset) => ({ ...v, timeline: id, timelineOffset: offset }))
-    .appLeft(offsets)
-    .onTrigger((hap) => {
-      const t = Number(hap.whole.begin);
-      const tQuantized = quantize ? Math.ceil(t) : t;
-      // Set state on the first trigger
-      state[key] ??= tQuantized;
-      polarities[key] ??= polarity;
-      if (polarities[key] !== polarity) {
-        state[key] = t;
-      }
-      polarities[key] = polarity;
-    }, false);
+  _quantization: 1,
 };
 
 /**
@@ -3677,12 +3637,44 @@ const _timeline = (id, pat, quantize = false) => {
  * // and it will always start on note 0
  * // $: n("[0 .. 6]/4").scale("F:minor").timeline(2)
  */
-export const timeline = register('timeline', (id, pat) => _timeline(id, pat, true));
-
-/**
- * The same as `timeline`, but not quantized to the next cycle.
- *
- * @param {number | Pattern} id Timeline id. Must be a non-zero number. Switch signs to reset.
- * @returns Pattern
- */
-export const timelineF = register('timelineF', (id, pat) => _timeline(id, pat));
+export const timeline = register('timeline', (id, pat) => {
+  if (typeof id !== 'number' || id === 0) {
+    logger(
+      `[query] ${id} is not a valid timeline id. Please ensure it is a non-zero number. Defaulting to timeline 1.`,
+    );
+    id = 1;
+  }
+  const key = Math.abs(id);
+  const polarity = id > 0 ? 1 : -1;
+  const { state, polarities } = TIMELINES;
+  const cps = TIMELINES.cps[key] ?? TIMELINES._globalCps;
+  const q = TIMELINES._quantization;
+  const offsets = pat
+    .withHaps((haps) =>
+      groupHapsBy((a, b) => a.whole.begin.equals(b.whole.begin), haps).map(([firstHap]) =>
+        firstHap.withValue(() => {
+          const t = Number(firstHap.whole.begin);
+          const tQuantized = q > 0 ? Math.ceil(q * getTime()) / q : t;
+          // We let the pattern run until the sign flips
+          return polarities[key] === polarity ? state[key] : tQuantized;
+        }),
+      ),
+    )
+    .stripContext();
+  return pat
+    .cpm(cps * 60)
+    .late(offsets)
+    .withValue((v) => (offset) => ({ ...v, timeline: id, timelineOffset: offset }))
+    .appLeft(offsets)
+    .onTrigger((hap) => {
+      const t = Number(hap.whole.begin);
+      const tQuantized = q > 0 ? Math.ceil(q * t) / q : t;
+      // Set state on the first trigger
+      state[key] ??= tQuantized;
+      polarities[key] ??= polarity;
+      if (polarities[key] !== polarity) {
+        state[key] = t;
+      }
+      polarities[key] = polarity;
+    }, false);
+});
