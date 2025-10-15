@@ -188,6 +188,7 @@ export function useReplContext() {
     clearHydra();
     resetLoadedSounds();
     editorRef.current.repl.setCps(0.5);
+    editorRef.current.repl.resetTimelines();
     await prebake(); // declare default samples
   };
 

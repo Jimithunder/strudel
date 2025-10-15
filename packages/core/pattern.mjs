@@ -9,7 +9,6 @@ import Fraction, { isFraction, lcm } from './fraction.mjs';
 import Hap from './hap.mjs';
 import State from './state.mjs';
 import { unionWithObj } from './value.mjs';
-import { getTime } from './time.mjs';
 
 import {
   uniqsortr,
@@ -3612,7 +3611,7 @@ export const TIMELINES = {
   state: {},
   polarities: {},
   cps: {},
-  _globalCps: 60, // will be overwritten by REPL
+  _globalCps: 0.5, // will be overwritten by REPL
   _quantization: 1,
 };
 
@@ -3654,7 +3653,7 @@ export const timeline = register('timeline', (id, pat) => {
       groupHapsBy((a, b) => a.whole.begin.equals(b.whole.begin), haps).map(([firstHap]) =>
         firstHap.withValue(() => {
           const t = Number(firstHap.whole.begin);
-          const tQuantized = q > 0 ? Math.ceil(q * getTime()) / q : t;
+          const tQuantized = q > 0 ? Math.ceil(q * t) / q : t;
           // We let the pattern run until the sign flips
           return polarities[key] === polarity ? state[key] : tQuantized;
         }),

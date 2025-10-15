@@ -46,6 +46,13 @@ export function repl({
     onUpdateState?.(state);
   };
 
+  const resetTimelines = () => {
+    TIMELINES.state = {};
+    TIMELINES.polarities = {};
+    TIMELINES.cps = {};
+    TIMELINES._quantization = 1;
+  };
+
   const schedulerOptions = {
     onTrigger: getTrigger({ defaultOutput, getTime }),
     getTime,
@@ -53,9 +60,7 @@ export function repl({
       updateState({ started });
       onToggle?.(started);
       if (!started) {
-        // Reset timeline state
-        TIMELINES.state = {};
-        TIMELINES.polarities = {};
+        resetTimelines();
       }
     },
     setInterval,
@@ -263,6 +268,7 @@ export function repl({
       timelinecpm: timelineCpm,
       timelineQuant,
       timelinequant: timelineQuant,
+      resetTimelines,
     });
   };
 
@@ -326,7 +332,7 @@ export function repl({
     }
   };
   const setCode = (code) => updateState({ code });
-  return { scheduler, evaluate, start, stop, pause, setCps, setPattern, setCode, toggle, state };
+  return { scheduler, evaluate, start, stop, pause, setCps, setPattern, setCode, toggle, state, resetTimelines };
 }
 
 export const getTrigger =

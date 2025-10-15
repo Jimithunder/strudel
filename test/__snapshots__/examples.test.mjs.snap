@@ -10920,7 +10920,42 @@ exports[`runs examples > example "take" example index 2 1`] = `
 ]
 `;
 
-exports[`runs examples > example "timeline" example index 0 1`] = `[]`;
+exports[`runs examples > example "timeline" example index 0 1`] = `
+[
+  "[ (0/1 → 1/8) ⇝ 1/4 | s:tri note:G#3 cutoff:400 room:2 timeline:1 timelineOffset:0 ]",
+  "[ 0/1 ⇜ (1/8 → 1/4) | s:tri note:C#4 cutoff:400 room:2 timeline:1 timelineOffset:1 ]",
+  "[ (1/4 → 3/8) ⇝ 1/2 | s:tri note:D#4 cutoff:400 room:2 timeline:1 timelineOffset:1 ]",
+  "[ 1/4 ⇜ (3/8 → 1/2) | s:tri note:D#4 cutoff:400 room:2 timeline:1 timelineOffset:1 ]",
+  "[ (1/2 → 5/8) ⇝ 3/4 | s:tri note:D#4 cutoff:400 room:2 timeline:1 timelineOffset:1 ]",
+  "[ 1/2 ⇜ (5/8 → 3/4) | s:tri note:D#4 cutoff:400 room:2 timeline:1 timelineOffset:1 ]",
+  "[ (3/4 → 7/8) ⇝ 1/1 | s:tri note:A#4 cutoff:400 room:2 timeline:1 timelineOffset:1 ]",
+  "[ 3/4 ⇜ (7/8 → 1/1) | s:tri note:A#4 cutoff:400 room:2 timeline:1 timelineOffset:1 ]",
+  "[ (1/1 → 9/8) ⇝ 5/4 | s:tri note:G#3 cutoff:400 room:2 timeline:-1 timelineOffset:1 ]",
+  "[ 1/1 ⇜ (9/8 → 5/4) | s:tri note:C#4 cutoff:400 room:2 timeline:-1 timelineOffset:2 ]",
+  "[ (5/4 → 11/8) ⇝ 3/2 | s:tri note:D#4 cutoff:400 room:2 timeline:-1 timelineOffset:2 ]",
+  "[ 5/4 ⇜ (11/8 → 3/2) | s:tri note:D#4 cutoff:400 room:2 timeline:-1 timelineOffset:2 ]",
+  "[ (3/2 → 13/8) ⇝ 7/4 | s:tri note:D#4 cutoff:400 room:2 timeline:-1 timelineOffset:2 ]",
+  "[ 3/2 ⇜ (13/8 → 7/4) | s:tri note:D#4 cutoff:400 room:2 timeline:-1 timelineOffset:2 ]",
+  "[ (7/4 → 15/8) ⇝ 2/1 | s:tri note:A#4 cutoff:400 room:2 timeline:-1 timelineOffset:2 ]",
+  "[ 7/4 ⇜ (15/8 → 2/1) | s:tri note:A#4 cutoff:400 room:2 timeline:-1 timelineOffset:2 ]",
+  "[ (2/1 → 17/8) ⇝ 9/4 | s:tri note:G#3 cutoff:400 room:2 timeline:1 timelineOffset:2 ]",
+  "[ 2/1 ⇜ (17/8 → 9/4) | s:tri note:C#4 cutoff:400 room:2 timeline:1 timelineOffset:3 ]",
+  "[ (9/4 → 19/8) ⇝ 5/2 | s:tri note:D#4 cutoff:400 room:2 timeline:1 timelineOffset:3 ]",
+  "[ 9/4 ⇜ (19/8 → 5/2) | s:tri note:D#4 cutoff:400 room:2 timeline:1 timelineOffset:3 ]",
+  "[ (5/2 → 21/8) ⇝ 11/4 | s:tri note:D#4 cutoff:400 room:2 timeline:1 timelineOffset:3 ]",
+  "[ 5/2 ⇜ (21/8 → 11/4) | s:tri note:D#4 cutoff:400 room:2 timeline:1 timelineOffset:3 ]",
+  "[ (11/4 → 23/8) ⇝ 3/1 | s:tri note:A#4 cutoff:400 room:2 timeline:1 timelineOffset:3 ]",
+  "[ 11/4 ⇜ (23/8 → 3/1) | s:tri note:A#4 cutoff:400 room:2 timeline:1 timelineOffset:3 ]",
+  "[ (3/1 → 25/8) ⇝ 13/4 | s:tri note:G#3 cutoff:400 room:2 timeline:2 timelineOffset:3 ]",
+  "[ 3/1 ⇜ (25/8 → 13/4) | s:tri note:C#4 cutoff:400 room:2 timeline:2 timelineOffset:4 ]",
+  "[ (13/4 → 27/8) ⇝ 7/2 | s:tri note:D#4 cutoff:400 room:2 timeline:2 timelineOffset:4 ]",
+  "[ 13/4 ⇜ (27/8 → 7/2) | s:tri note:D#4 cutoff:400 room:2 timeline:2 timelineOffset:4 ]",
+  "[ (7/2 → 29/8) ⇝ 15/4 | s:tri note:D#4 cutoff:400 room:2 timeline:2 timelineOffset:4 ]",
+  "[ 7/2 ⇜ (29/8 → 15/4) | s:tri note:D#4 cutoff:400 room:2 timeline:2 timelineOffset:4 ]",
+  "[ (15/4 → 31/8) ⇝ 4/1 | s:tri note:A#4 cutoff:400 room:2 timeline:2 timelineOffset:4 ]",
+  "[ 15/4 ⇜ (31/8 → 4/1) | s:tri note:A#4 cutoff:400 room:2 timeline:2 timelineOffset:4 ]",
+]
+`;
 
 exports[`runs examples > example "timeline" example index 1 1`] = `
 [
