@@ -6,6 +6,27 @@ This program is free software: you can redistribute it and/or modify it under th
 
 // evolved from https://garten.salat.dev/lisp/parser.html
 export class MondoParser {
+
+  // Mapping from operator characters to function names for structured operators
+  static OP_CHAR_TO_FUNC = {
+    '+': 'add',
+    '-': 'sub',
+    '*': 'mul',
+    '/': 'div',
+    '%': 'mod',
+    '!': 'func',
+    '@': 'func',
+    ':': 'func',
+    '?': 'func',
+  };
+
+  // Mapping from operator token types to method suffixes
+  static OP_TYPE_TO_SUFFIX = {
+    op_mix: 'mix',    // |+| - structure from both patterns (appBoth)
+    op_left: 'in',    // |+  - structure from left pattern (appLeft)
+    op_right: 'out',  // +|  - structure from right pattern (appRight)
+  };
+
   // these are the tokens we expect
   token_types = {
     comment: /^\/\/(.*?)(?=\n|$)/,
@@ -19,10 +40,13 @@ export class MondoParser {
     close_square: /^\]/,
     open_curly: /^\{/,
     close_curly: /^\}/,
-    number: /^-?[0-9]*\.?[0-9]+/, // before pipe!
+    number: /^-?[0-9]*\.?[0-9]+/,
     // TODO: better error handling when "-" is used as rest, e.g "s [- bd]"
-    op: /^[*/:!@%?+-]|^\.{2}/, // * / : ! @ % ? ..
-    // dollar: /^\$/,
+    // MUST come before op and or to ensure correct tokenization!
+    op_mix: /^\|[*\/:!@%?+\-]\|/,        // |+|, |-|, |*|, etc. - structure from both
+    op_left: /^\|[*\/:!@%?+\-](?!\|)/,   // |+, |-, |*, etc. - structure from left
+    op_right: /^[*\/:!@%?+\-]\|/,        // +|, -|, *|, etc. - structure from right
+    op: /^[*/:!@%?+-]|^\.{2}/,
     pipe: /^#/,
     stack: /^[,$]/,
     or: /^[|]/,
@@ -152,46 +176,156 @@ export class MondoParser {
   }
   desugar_ops(children) {
     while (true) {
-      let opIndex = children.findIndex((child) => child.type === 'op');
-      if (opIndex === -1) break;
-      const op = { type: 'plain', value: children[opIndex].value };
-      if (opIndex === children.length - 1) {
-        //throw new Error(`cannot use operator as last child.`);
-        children[opIndex] = op; // ignore operator if last child.. e.g. "note [c -]"
+      // First, check for structured operators (|+|, |+, +|)
+      let opIndex = children.findIndex((child) =>
+        ['op_mix', 'op_left', 'op_right'].includes(child.type)
+      );
+
+      if (opIndex !== -1) {
+        const opToken = children[opIndex];
+
+        // Handle edge cases: operator at start or end
+        if (opIndex === children.length - 1 || opIndex === 0) {
+          children[opIndex] = { type: 'plain', value: opToken.value };
+          continue;
+        }
+
+        // Handle pipe case: "x # |+ y" should not be treated as structured op
+        if (children[opIndex - 1].type === 'pipe') {
+          children[opIndex] = { type: 'plain', value: opToken.value };
+          continue;
+        }
+
+        // Combine adjacent elements into function calls
+        // Example: "s [bd hh] |+| n [0 1 2]" becomes:
+        //   left = (s [bd hh]), right = (n [0 1 2])
+        const { left, right, consumedLeft, consumedRight } =
+          this.combineOperands(children, opIndex);
+
+        // Build helper function call
+        // Example: |+| with '+' becomes '_add_mix'
+        const opChar = opToken.value.replace(/\|/g, '');
+        const funcName = MondoParser.OP_CHAR_TO_FUNC[opChar] || opChar;
+        const suffix = MondoParser.OP_TYPE_TO_SUFFIX[opToken.type];
+        const helperName = `_${funcName}_${suffix}`;
+
+        // Create AST node for the function call
+        const call = {
+          type: 'list',
+          children: [{ type: 'plain', value: helperName }, left, right]
+        };
+
+        // Replace the consumed elements with the function call
+        const startIndex = opIndex - 1 - consumedLeft;
+        const endIndex = opIndex + 2 + consumedRight;
+        children = [...children.slice(0, startIndex), call, ...children.slice(endIndex)];
+        children = this.unwrap_children(children);
         continue;
       }
-      if (opIndex === 0) {
-        // regular function call (assuming each operator exists as function)
+
+      // Fall back to existing operator handling for regular ops
+      opIndex = children.findIndex((child) => child.type === 'op');
+      if (opIndex === -1) break;
+
+      const op = { type: 'plain', value: children[opIndex].value };
+
+      if (opIndex === children.length - 1) {
         children[opIndex] = op;
         continue;
       }
-      // convert infix to prefix notation
+
+      if (opIndex === 0) {
+        children[opIndex] = op;
+        continue;
+      }
+
       const left = children[opIndex - 1];
       const right = children[opIndex + 1];
+
       if (left.type === 'pipe') {
-        // "x !* 2" => (* 2 x)
         children[opIndex] = op;
         continue;
       }
-      // some careful error handling
+
       if (left.type === 'op') {
         throw new Error(`got 2 ops in a row: "${left.value}${op.value}"`);
       }
       if (right.type === 'op') {
         let err = `got 2 ops in a row: "${op.value}${right.value}"`;
         if (op.value === '-') {
-          // yes i know this file is not supposed to know about rests x.X
           err += '. you probably want a rest, which is "_" in mondo!';
         }
         throw new Error(err);
       }
+
       const call = { type: 'list', children: [op, right, left] };
-      // insert call while keeping other siblings
       children = [...children.slice(0, opIndex - 1), call, ...children.slice(opIndex + 2)];
       children = this.unwrap_children(children);
     }
     return children;
   }
+
+  /**
+   * Combines operands around a structured operator.
+   * Handles cases like:
+   * - "s [bd hh] |+| n [0 1 2]" → (s [bd hh]) and (n [0 1 2])
+   * - "s bd |+| n 0" → (s bd) and (n 0)
+   * - "s [bd] |+| 0" → (s [bd]) and 0
+   * - "bd |+| 0" → bd and 0
+   *
+   * @param {Array} children - The array of child nodes
+   * @param {number} opIndex - The index of the operator
+   * @returns {Object} - { left, right, consumedLeft, consumedRight }
+   */
+  combineOperands(children, opIndex) {
+    let left = children[opIndex - 1];
+    let right = children[opIndex + 1];
+    let consumedLeft = 0;
+    let consumedRight = 0;
+
+    // LEFT SIDE COMBINATION
+    // Case 1: list preceded by plain → combine them
+    // Example: "s [bd hh]" → (s [bd hh])
+    if (left.type === 'list' && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
+      left = {
+        type: 'list',
+        children: [children[opIndex - 2], left]
+      };
+      consumedLeft = 1;
+    }
+    // Case 2: plain preceded by another plain → combine them
+    // Example: "s bd" → (s bd)
+    else if (left.type === 'plain' && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
+      left = {
+        type: 'list',
+        children: [children[opIndex - 2], left]
+      };
+      consumedLeft = 1;
+    }
+
+    // RIGHT SIDE COMBINATION
+    // Case 1: plain followed by list → combine them
+    // Example: "n [0 1 2]" → (n [0 1 2])
+    if (right.type === 'plain' && opIndex + 2 < children.length && children[opIndex + 2].type === 'list') {
+      right = {
+        type: 'list',
+        children: [right, children[opIndex + 2]]
+      };
+      consumedRight = 1;
+    }
+    // Case 2: plain followed by another plain → combine them
+    // Example: "n 0" → (n 0)
+    else if (right.type === 'plain' && opIndex + 2 < children.length && children[opIndex + 2].type === 'plain') {
+      right = {
+        type: 'list',
+        children: [right, children[opIndex + 2]]
+      };
+      consumedRight = 1;
+    }
+
+    return { left, right, consumedLeft, consumedRight };
+  }
+
   get_lambda(args, children) {
     // (.fast 2) = (fn (_) (fast _ 2))
     children = this.desugar(children);

@@ -11,6 +11,27 @@ import {
   chooseIn,
   degradeBy,
   silence,
+  s,
+  n,
+  gain,
+  note,
+  velocity,
+  pan,
+  speed,
+  cut,
+  room,
+  size,
+  delay,
+  delaytime,
+  delayfeedback,
+  vowel,
+  shape,
+  crush,
+  coarse,
+  lpf,
+  hpf,
+  bpf,
+  resonance,
 } from '@strudel/core';
 import { registerLanguage } from '@strudel/transpiler';
 import { MondoRunner } from 'mondolang';
@@ -45,6 +66,80 @@ lib['..'] = range;
 lib['def'] = () => silence;
 lib['or'] = (...children) => chooseIn(...children); // always has structure but is cyclewise.. e.g. "s oh*8.dec[.04 | .5]"
 //lib['or'] = (...children) => chooseOut(...children); // "s oh*8.dec[.04 | .5]" is better but "dec[.04 | .5].s oh*8" has no struct
+
+// Add common controls
+lib['s'] = s;
+lib['n'] = n;
+lib['gain'] = gain;
+lib['note'] = note;
+lib['velocity'] = velocity;
+lib['pan'] = pan;
+lib['speed'] = speed;
+lib['cut'] = cut;
+lib['room'] = room;
+lib['size'] = size;
+lib['delay'] = delay;
+lib['delaytime'] = delaytime;
+lib['delayfeedback'] = delayfeedback;
+lib['vowel'] = vowel;
+lib['shape'] = shape;
+lib['crush'] = crush;
+lib['coarse'] = coarse;
+lib['lpf'] = lpf;
+lib['hpf'] = hpf;
+lib['bpf'] = bpf;
+lib['resonance'] = resonance;
+
+// These operators allow combining ControlPatterns by merging their control objects.
+// For duplicate keys (same control), arithmetic operations are applied.
+// For different keys, values are simply merged.
+//
+// Operator variants:
+// - mix (|op|): Structure from both patterns (appBoth)
+// - in (|op):   Structure from left pattern (appLeft)
+// - out (op|):  Structure from right pattern (appRight)
+//
+// Example: s [bd hh sd cp] |+| n [0 1 2]
+// Combines sound and note patterns, creating events at the intersection of both.
+
+// Helper function to create safe operation functions
+// If both values are numbers, apply the operation; otherwise return the right value
+const createSafeOp = (op) => (a, b) => {
+  if (typeof a === 'number' && typeof b === 'number') return op(a, b);
+  return b; // If not both numbers, take right value
+};
+
+const safeAdd = createSafeOp((a, b) => a + b);
+const safeSub = createSafeOp((a, b) => a - b);
+const safeMul = createSafeOp((a, b) => a * b);
+const safeDiv = createSafeOp((a, b) => a / b);
+const safeMod = createSafeOp((a, b) => a % b);
+
+// Helper function to merge two control objects using an operation
+const mergeControls = (av, bv, safeOp) => {
+  if (typeof av === 'object' && typeof bv === 'object') {
+    const common = Object.keys(av).filter(k => Object.keys(bv).includes(k));
+    return Object.assign({}, av, bv, Object.fromEntries(common.map(k => [k, safeOp(av[k], bv[k])])));
+  }
+  return safeOp(av, bv);
+};
+
+// Factory function to create structured operator helpers
+// safeOp: the safe operation function (safeAdd, safeSub, etc.)
+// appMethod: the applicative method to use ('appBoth', 'appLeft', or 'appRight')
+const createStructuredOp = (safeOp, appMethod) => (a, b) =>
+  reify(a).fmap((av) => (bv) => mergeControls(av, bv, safeOp))[appMethod](reify(b));
+
+// Register all structured operators
+const operators = ['add', 'sub', 'mul', 'div', 'mod'];
+const safeOps = { add: safeAdd, sub: safeSub, mul: safeMul, div: safeDiv, mod: safeMod };
+const variants = { mix: 'appBoth', in: 'appLeft', out: 'appRight' };
+
+for (const op of operators) {
+  for (const [variant, appMethod] of Object.entries(variants)) {
+    lib[`_${op}_${variant}`] = createStructuredOp(safeOps[op], appMethod);
+  }
+}
 
 function evaluator(node, scope) {
   const { type } = node;
