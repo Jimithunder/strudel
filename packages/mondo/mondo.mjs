@@ -6,7 +6,6 @@ This program is free software: you can redistribute it and/or modify it under th
 
 // evolved from https://garten.salat.dev/lisp/parser.html
 export class MondoParser {
-
   // Mapping from operator characters to function names for structured operators
   static OP_CHAR_TO_FUNC = {
     '+': 'add',
@@ -22,9 +21,9 @@ export class MondoParser {
 
   // Mapping from operator token types to method suffixes
   static OP_TYPE_TO_SUFFIX = {
-    op_mix: 'mix',    // |+| - structure from both patterns (appBoth)
-    op_left: 'in',    // |+  - structure from left pattern (appLeft)
-    op_right: 'out',  // +|  - structure from right pattern (appRight)
+    op_mix: 'mix', // |+| - structure from both patterns (appBoth)
+    op_left: 'in', // |+  - structure from left pattern (appLeft)
+    op_right: 'out', // +|  - structure from right pattern (appRight)
   };
 
   // these are the tokens we expect
@@ -43,9 +42,9 @@ export class MondoParser {
     number: /^-?[0-9]*\.?[0-9]+/,
     // TODO: better error handling when "-" is used as rest, e.g "s [- bd]"
     // MUST come before op and or to ensure correct tokenization!
-    op_mix: /^\|[*\/:!@%?+\-]\|/,        // |+|, |-|, |*|, etc. - structure from both
-    op_left: /^\|[*\/:!@%?+\-](?!\|)/,   // |+, |-, |*, etc. - structure from left
-    op_right: /^[*\/:!@%?+\-]\|/,        // +|, -|, *|, etc. - structure from right
+    op_mix: /^\|[*\/:!@%?+\-]\|/, // |+|, |-|, |*|, etc. - structure from both
+    op_left: /^\|[*\/:!@%?+\-](?!\|)/, // |+, |-, |*, etc. - structure from left
+    op_right: /^[*\/:!@%?+\-]\|/, // +|, -|, *|, etc. - structure from right
     op: /^[*/:!@%?+-]|^\.{2}/,
     pipe: /^#/,
     stack: /^[,$]/,
@@ -177,9 +176,7 @@ export class MondoParser {
   desugar_ops(children) {
     while (true) {
       // First, check for structured operators (|+|, |+, +|)
-      let opIndex = children.findIndex((child) =>
-        ['op_mix', 'op_left', 'op_right'].includes(child.type)
-      );
+      let opIndex = children.findIndex((child) => ['op_mix', 'op_left', 'op_right'].includes(child.type));
 
       if (opIndex !== -1) {
         const opToken = children[opIndex];
@@ -199,8 +196,7 @@ export class MondoParser {
         // Combine adjacent elements into function calls
         // Example: "s [bd hh] |+| n [0 1 2]" becomes:
         //   left = (s [bd hh]), right = (n [0 1 2])
-        const { left, right, consumedLeft, consumedRight } =
-          this.combineOperands(children, opIndex);
+        const { left, right, consumedLeft, consumedRight } = this.combineOperands(children, opIndex);
 
         // Build helper function call
         // Example: |+| with '+' becomes '_add_mix'
@@ -212,7 +208,7 @@ export class MondoParser {
         // Create AST node for the function call
         const call = {
           type: 'list',
-          children: [{ type: 'plain', value: helperName }, left, right]
+          children: [{ type: 'plain', value: helperName }, left, right],
         };
 
         // Replace the consumed elements with the function call
@@ -289,7 +285,7 @@ export class MondoParser {
     if (left.type === 'list' && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
       left = {
         type: 'list',
-        children: [children[opIndex - 2], left]
+        children: [children[opIndex - 2], left],
       };
       consumedLeft = 1;
     }
@@ -298,7 +294,7 @@ export class MondoParser {
     else if (left.type === 'plain' && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
       left = {
         type: 'list',
-        children: [children[opIndex - 2], left]
+        children: [children[opIndex - 2], left],
       };
       consumedLeft = 1;
     }
@@ -309,7 +305,7 @@ export class MondoParser {
     if (right.type === 'plain' && opIndex + 2 < children.length && children[opIndex + 2].type === 'list') {
       right = {
         type: 'list',
-        children: [right, children[opIndex + 2]]
+        children: [right, children[opIndex + 2]],
       };
       consumedRight = 1;
     }
@@ -318,7 +314,7 @@ export class MondoParser {
     else if (right.type === 'plain' && opIndex + 2 < children.length && children[opIndex + 2].type === 'plain') {
       right = {
         type: 'list',
-        children: [right, children[opIndex + 2]]
+        children: [right, children[opIndex + 2]],
       };
       consumedRight = 1;
     }

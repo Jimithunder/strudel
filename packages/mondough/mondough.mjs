@@ -118,8 +118,8 @@ const safeMod = createSafeOp((a, b) => a % b);
 // Helper function to merge two control objects using an operation
 const mergeControls = (av, bv, safeOp) => {
   if (typeof av === 'object' && typeof bv === 'object') {
-    const common = Object.keys(av).filter(k => Object.keys(bv).includes(k));
-    return Object.assign({}, av, bv, Object.fromEntries(common.map(k => [k, safeOp(av[k], bv[k])])));
+    const common = Object.keys(av).filter((k) => Object.keys(bv).includes(k));
+    return Object.assign({}, av, bv, Object.fromEntries(common.map((k) => [k, safeOp(av[k], bv[k])])));
   }
   return safeOp(av, bv);
 };
@@ -128,7 +128,9 @@ const mergeControls = (av, bv, safeOp) => {
 // safeOp: the safe operation function (safeAdd, safeSub, etc.)
 // appMethod: the applicative method to use ('appBoth', 'appLeft', or 'appRight')
 const createStructuredOp = (safeOp, appMethod) => (a, b) =>
-  reify(a).fmap((av) => (bv) => mergeControls(av, bv, safeOp))[appMethod](reify(b));
+  reify(a)
+    .fmap((av) => (bv) => mergeControls(av, bv, safeOp))
+    [appMethod](reify(b));
 
 // Register all structured operators
 const operators = ['add', 'sub', 'mul', 'div', 'mod'];
