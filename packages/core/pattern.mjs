@@ -5,7 +5,7 @@ This program is free software: you can redistribute it and/or modify it under th
 */
 
 import TimeSpan from './timespan.mjs';
-import Fraction, { lcm } from './fraction.mjs';
+import Fraction, { isFraction, lcm } from './fraction.mjs';
 import Hap from './hap.mjs';
 import State from './state.mjs';
 import { unionWithObj } from './value.mjs';
@@ -98,10 +98,7 @@ export class Pattern {
 
   // runs func on query state
   withState(func) {
-    return this.withHaps((haps, state) => {
-      func(state);
-      return haps;
-    });
+    return new Pattern((state) => this.query(func(state)));
   }
 
   /**
@@ -999,7 +996,7 @@ addToPrototype('weaveWith', function (t, ...funcs) {
 // compose matrix functions
 
 function _nonArrayObject(x) {
-  return !Array.isArray(x) && typeof x === 'object';
+  return !Array.isArray(x) && typeof x === 'object' && !isFraction(x);
 }
 function _composeOp(a, b, func) {
   if (_nonArrayObject(a) || _nonArrayObject(b)) {
@@ -3004,6 +3001,24 @@ export const extend = stepRegister('extend', function (factor, pat) {
 /**
  * *Experimental*
  *
+ * `replicate` is similar to `fast` in that it increases its density, but it also increases the step count
+ * accordingly. So `stepcat("a b".replicate(2), "c d")` would be the same as `"a b a b c d"`, whereas
+ * `stepcat("a b".fast(2), "c d")` would be the same as `"[a b] [a b] c d"`.
+ *
+ * TODO: find out how this function differs from extend
+ * @example
+ * stepcat(
+ *   sound("bd bd - cp").replicate(2),
+ *   sound("bd - sd -")
+ * ).pace(8)
+ */
+export const replicate = stepRegister('replicate', function (factor, pat) {
+  return pat.repeatCycles(factor).fast(factor).expand(factor);
+});
+
+/**
+ * *Experimental*
+ *
  * Expands the step size of the pattern by the given factor.
  * @example
  * sound("tha dhi thom nam").bank("mridangam").expand("3 2 1 1 2 3").pace(8)
@@ -3536,3 +3551,76 @@ export const morph = (frompat, topat, bypat) => {
   bypat = reify(bypat);
   return frompat.innerBind((from) => topat.innerBind((to) => bypat.innerBind((by) => _morph(from, to, by))));
 };
+
+/**
+ * Soft-clipping distortion
+ *
+ * @name soft
+ * @param {number | Pattern} distortion amount of distortion to apply
+ * @param {number | Pattern} volume linear postgain of the distortion
+ *
+ */
+/**
+ * Hard-clipping distortion
+ *
+ * @name hard
+ * @param {number | Pattern} distortion amount of distortion to apply
+ * @param {number | Pattern} volume linear postgain of the distortion
+ *
+ */
+/**
+ * Cubic polynomial distortion
+ *
+ * @name cubic
+ * @param {number | Pattern} distortion amount of distortion to apply
+ * @param {number | Pattern} volume linear postgain of the distortion
+ *
+ */
+/**
+ * Diode-emulating distortion
+ *
+ * @name diode
+ * @param {number | Pattern} distortion amount of distortion to apply
+ * @param {number | Pattern} volume linear postgain of the distortion
+ *
+ */
+/**
+ * Asymmetrical diode distortion
+ *
+ * @name asym
+ * @param {number | Pattern} distortion amount of distortion to apply
+ * @param {number | Pattern} volume linear postgain of the distortion
+ *
+ */
+/**
+ * Wavefolding distortion
+ *
+ * @name fold
+ * @param {number | Pattern} distortion amount of distortion to apply
+ * @param {number | Pattern} volume linear postgain of the distortion
+ *
+ */
+/**
+ * Wavefolding distortion composed with sinusoid
+ *
+ * @name sinefold
+ * @param {number | Pattern} distortion amount of distortion to apply
+ * @param {number | Pattern} volume linear postgain of the distortion
+ *
+ */
+/**
+ * Distortion via Chebyshev polynomials
+ *
+ * @name chebyshev
+ * @param {number | Pattern} distortion amount of distortion to apply
+ * @param {number | Pattern} volume linear postgain of the distortion
+ *
+ */
+const distAlgoNames = ['scurve', 'soft', 'hard', 'cubic', 'diode', 'asym', 'fold', 'sinefold', 'chebyshev'];
+for (const name of distAlgoNames) {
+  // Add aliases for distortion algorithms
+  Pattern.prototype[name] = function (args) {
+    const argsPat = reify(args).fmap((v) => (Array.isArray(v) ? [...v, name] : [v, 1, name]));
+    return this.distort(argsPat);
+  };
+}
