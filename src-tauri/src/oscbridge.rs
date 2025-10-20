@@ -3,13 +3,13 @@ use rosc::{OscBundle, OscMessage, OscPacket, OscType};
 
 use std::net::UdpSocket;
 
+use log;
 use serde::Deserialize;
 use std::sync::Arc;
 use std::thread::sleep;
-use std::time::{Duration};
+use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};
 
-use crate::loggerbridge::Logger;
 pub struct OscMsg {
     pub msg_buf: Vec<u8>,
     pub timestamp: f64,
@@ -25,7 +25,6 @@ const NANOS_PER_SECOND: f64 = 1.0e9;
 const SECONDS_PER_NANO: f64 = 1.0 / NANOS_PER_SECOND;
 
 pub fn init(
-    logger: Logger,
     async_input_receiver: mpsc::Receiver<Vec<OscMsg>>,
     mut async_output_receiver: mpsc::Receiver<Vec<OscMsg>>,
     async_output_transmitter: mpsc::Sender<Vec<OscMsg>>,
@@ -55,11 +54,19 @@ pub fn init(
         /* ...........................................................
                             Open OSC Ports
         ............................................................*/
-        let sock = UdpSocket::bind("127.0.0.1:57122").unwrap();
+        let sock = match UdpSocket::bind("127.0.0.1:57122") {
+            Ok(s) => s,
+            Err(e) => {
+                log::warn!("Port 57122 in use: {}. Binding to a random port.", e);
+                UdpSocket::bind("127.0.0.1:0").expect("Failed to bind to a random port")
+            }
+        };
         let to_addr = String::from("127.0.0.1:57120");
         sock.set_nonblocking(true).unwrap();
         sock.connect(to_addr)
             .expect("could not connect to OSC address");
+
+        log::info!("OSC Bridge initialized, binding to {}", sock.local_addr().unwrap());
 
         /* ...........................................................
                             Process queued messages
@@ -71,11 +78,8 @@ pub fn init(
             message_queue.retain(|message| {
                 let result = sock.send(&message.msg_buf);
                 if result.is_err() {
-                    logger.log(
-                        format!(
-                            "OSC Message failed to send, the server might no longer be available"
-                        ),
-                        "error".to_string(),
+                    log::error!(
+                        "OSC Message failed to send, the server might no longer be available"
                     );
                 }
                 return false;
@@ -130,8 +134,7 @@ pub async fn sendosc(
         // let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
 
         let time_delay = Duration::from_secs_f64(m.timestamp);
-        let duration_since_epoch =
-        time_delay + Duration::new(UNIX_OFFSET, 0);
+        let duration_since_epoch = time_delay + Duration::new(UNIX_OFFSET, 0);
 
         let seconds = u32::try_from(duration_since_epoch.as_secs())
             .map_err(|_| "bit conversion failed for osc message timetag")?;
