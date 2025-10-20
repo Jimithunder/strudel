@@ -36,7 +36,7 @@ export class MondoParser {
     open_angle: /^</,
     close_angle: /^>/,
     open_square: /^\[/,
-    close_square: /^\]/,
+    close_square: /^\]/, // before pipe!
     open_curly: /^\{/,
     close_curly: /^\}/,
     number: /^-?[0-9]*\.?[0-9]+/,
@@ -45,8 +45,8 @@ export class MondoParser {
     op_mix: /^\|[*\/:!@%?+\-]\|/, // |+|, |-|, |*|, etc. - structure from both
     op_left: /^\|[*\/:!@%?+\-](?!\|)/, // |+, |-, |*, etc. - structure from left
     op_right: /^[*\/:!@%?+\-]\|/, // +|, -|, *|, etc. - structure from right
-    op: /^[*/:!@%?+-]|^\.{2}/,
-    pipe: /^#/,
+    op: /^[*/:!@%?+-]|^\.{2}/, // * / : ! @ % ? ..
+    // dollar: /^\$/,    pipe: /^#/,
     stack: /^[,$]/,
     or: /^[|]/,
     plain: /^[a-zA-Z0-9-~_^#]+/,
@@ -229,7 +229,7 @@ export class MondoParser {
         children[opIndex] = op;
         continue;
       }
-
+      // convert infix to prefix notation
       if (opIndex === 0) {
         children[opIndex] = op;
         continue;
@@ -239,9 +239,11 @@ export class MondoParser {
       const right = children[opIndex + 1];
 
       if (left.type === 'pipe') {
+        // "x !* 2" => (* 2 x)
         children[opIndex] = op;
         continue;
       }
+      // some careful error handling
 
       if (left.type === 'op') {
         throw new Error(`got 2 ops in a row: "${left.value}${op.value}"`);
@@ -249,12 +251,14 @@ export class MondoParser {
       if (right.type === 'op') {
         let err = `got 2 ops in a row: "${op.value}${right.value}"`;
         if (op.value === '-') {
+          // yes i know this file is not supposed to know about rests x.X
           err += '. you probably want a rest, which is "_" in mondo!';
         }
         throw new Error(err);
       }
 
       const call = { type: 'list', children: [op, right, left] };
+      // insert call while keeping other siblings
       children = [...children.slice(0, opIndex - 1), call, ...children.slice(opIndex + 2)];
       children = this.unwrap_children(children);
     }
