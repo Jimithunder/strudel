@@ -148,7 +148,8 @@ function evaluator(node, scope) {
   // node is list
   if (type === 'list') {
     const { children } = node;
-    const [name, ...args] = children;
+    const filtered = children.filter((child) => child.type !== 'comment');
+    const [name, ...args] = filtered;
     // some functions wont be reified to make sure they work (e.g. see extend below)
     if (typeof name === 'function') {
       return name(...args);
