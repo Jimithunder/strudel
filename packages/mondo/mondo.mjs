@@ -27,6 +27,7 @@ export class MondoParser {
   };
 
   // these are the tokens we expect
+  /* eslint-disable no-useless-escape, no-unexpected-multiline */
   token_types = {
     comment: /^\/\/(.*?)(?=\n|$)/,
     quotes_double: /^"(.*?)"/,
@@ -51,6 +52,7 @@ export class MondoParser {
     or: /^[|]/,
     plain: /^[a-zA-Z0-9-~_^#]+/,
   };
+  /* eslint-enable no-useless-escape, no-unexpected-multiline */
   // matches next token
   next_token(code, offset = 0) {
     for (let type in this.token_types) {
