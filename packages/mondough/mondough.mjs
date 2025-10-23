@@ -127,9 +127,11 @@ const mergeControls = (av, bv, safeOp) => {
 // Factory function to create structured operator helpers
 // safeOp: the safe operation function (safeAdd, safeSub, etc.)
 // appMethod: the applicative method to use ('appBoth', 'appLeft', or 'appRight')
+// eslint-disable-next-line no-unexpected-multiline
 const createStructuredOp = (safeOp, appMethod) => (a, b) =>
-  (reify(a)
-    .fmap((av) => (bv) => mergeControls(av, bv, safeOp)))[appMethod](reify(b));
+  reify(a)
+    .fmap((av) => (bv) => mergeControls(av, bv, safeOp))
+    [appMethod](reify(b));
 
 // Register all structured operators
 const operators = ['add', 'sub', 'mul', 'div', 'mod'];
