@@ -1,2 +1,4 @@
 // Public API exports for @strudel/midi-import
-// This file will be populated as we implement the parsing and conversion layers
+
+// MIDI file parsing
+export { parseMidiFile, isValidMidiFile, extractMetadata, extractTracks } from './midi-import.mjs';
