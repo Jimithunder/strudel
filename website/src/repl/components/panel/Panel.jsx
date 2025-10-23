@@ -123,7 +123,7 @@ function PanelContent({ context, tab }) {
     case tabNames.console:
       return <ConsoleTab />;
     case tabNames.sounds:
-      return <SoundsTab />;
+      return <SoundsTab context={context} />;
     case tabNames.reference:
       return <Reference />;
     case tabNames.settings:
