@@ -101,7 +101,7 @@ export class MondoParser {
     }
 
     // Filter out comments at the top level before processing
-    const nonCommentExpressions = expressions.filter(expr => expr.type !== 'comment');
+    const nonCommentExpressions = expressions.filter((expr) => expr.type !== 'comment');
 
     // If we only had comments, return empty list
     if (nonCommentExpressions.length === 0) {
@@ -287,89 +287,91 @@ export class MondoParser {
    * @param {number} opIndex - The index of the operator
    * @returns {Object} - { left, right, consumedLeft, consumedRight }
    */
-/**
- * Combines operands around a structured operator.
- * Handles cases like:
- * - "s [bd hh] |+| n [0 1 2]" → (s [bd hh]) and (n [0 1 2])
- * - "s bd |+| n 0" → (s bd) and (n 0)
- * - "s [bd] |+| 0" → (s [bd]) and 0
- * - "bd |+| 0" → bd and 0
- *
- * @param {Array} children - The array of child nodes
- * @param {number} opIndex - The index of the operator
- * @returns {Object} - { left, right, consumedLeft, consumedRight }
- */
-combineOperands(children, opIndex) {
-  let left = children[opIndex - 1];
-  let right = children[opIndex + 1];
-  let consumedLeft = 0;
-  let consumedRight = 0;
+  /**
+   * Combines operands around a structured operator.
+   * Handles cases like:
+   * - "s [bd hh] |+| n [0 1 2]" → (s [bd hh]) and (n [0 1 2])
+   * - "s bd |+| n 0" → (s bd) and (n 0)
+   * - "s [bd] |+| 0" → (s [bd]) and 0
+   * - "bd |+| 0" → bd and 0
+   *
+   * @param {Array} children - The array of child nodes
+   * @param {number} opIndex - The index of the operator
+   * @returns {Object} - { left, right, consumedLeft, consumedRight }
+   */
+  combineOperands(children, opIndex) {
+    let left = children[opIndex - 1];
+    let right = children[opIndex + 1];
+    let consumedLeft = 0;
+    let consumedRight = 0;
 
-  // Helper function to check if a node is a "leaf" (not a list or operator)
-  const isLeaf = (node) => {
-    return node && !['list', 'op', 'op_mix', 'op_left', 'op_right', 'pipe', 'stack', 'or', 'comment'].includes(node.type);
-  };
+    // Helper function to check if a node is a "leaf" (not a list or operator)
+    const isLeaf = (node) => {
+      return (
+        node && !['list', 'op', 'op_mix', 'op_left', 'op_right', 'pipe', 'stack', 'or', 'comment'].includes(node.type)
+      );
+    };
 
-  // LEFT SIDE COMBINATION
-  // Case 1: list preceded by plain → combine them
-  // Example: "s [bd hh]" → (s [bd hh])
-  if (left.type === 'list' && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
-    left = {
-      type: 'list',
-      children: [children[opIndex - 2], left]
-    };
-    consumedLeft = 1;
-  }
-  // Case 2: plain preceded by another plain → combine them
-  // Example: "s bd" → (s bd)
-  else if (left.type === 'plain' && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
-    left = {
-      type: 'list',
-      children: [children[opIndex - 2], left]
-    };
-    consumedLeft = 1;
-  }
-  // Case 3: leaf (number, string, etc.) preceded by plain → combine them
-  // Example: "s 0" → (s 0)
-  else if (isLeaf(left) && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
-    left = {
-      type: 'list',
-      children: [children[opIndex - 2], left]
-    };
-    consumedLeft = 1;
-  }
+    // LEFT SIDE COMBINATION
+    // Case 1: list preceded by plain → combine them
+    // Example: "s [bd hh]" → (s [bd hh])
+    if (left.type === 'list' && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
+      left = {
+        type: 'list',
+        children: [children[opIndex - 2], left],
+      };
+      consumedLeft = 1;
+    }
+    // Case 2: plain preceded by another plain → combine them
+    // Example: "s bd" → (s bd)
+    else if (left.type === 'plain' && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
+      left = {
+        type: 'list',
+        children: [children[opIndex - 2], left],
+      };
+      consumedLeft = 1;
+    }
+    // Case 3: leaf (number, string, etc.) preceded by plain → combine them
+    // Example: "s 0" → (s 0)
+    else if (isLeaf(left) && opIndex >= 2 && children[opIndex - 2].type === 'plain') {
+      left = {
+        type: 'list',
+        children: [children[opIndex - 2], left],
+      };
+      consumedLeft = 1;
+    }
 
-  // RIGHT SIDE COMBINATION
-  // Case 1: plain followed by list → combine them
-  // Example: "n [0 1 2]" → (n [0 1 2])
-  if (right.type === 'plain' && opIndex + 2 < children.length && children[opIndex + 2].type === 'list') {
-    right = {
-      type: 'list',
-      children: [right, children[opIndex + 2]]
-    };
-    consumedRight = 1;
-  }
-  // Case 2: plain followed by another plain → combine them
-  // Example: "n bd" → (n bd)
-  else if (right.type === 'plain' && opIndex + 2 < children.length && children[opIndex + 2].type === 'plain') {
-    right = {
-      type: 'list',
-      children: [right, children[opIndex + 2]]
-    };
-    consumedRight = 1;
-  }
-  // Case 3: plain followed by leaf (number, string, etc.) → combine them
-  // Example: "n 0" → (n 0)
-  else if (right.type === 'plain' && opIndex + 2 < children.length && isLeaf(children[opIndex + 2])) {
-    right = {
-      type: 'list',
-      children: [right, children[opIndex + 2]]
-    };
-    consumedRight = 1;
-  }
+    // RIGHT SIDE COMBINATION
+    // Case 1: plain followed by list → combine them
+    // Example: "n [0 1 2]" → (n [0 1 2])
+    if (right.type === 'plain' && opIndex + 2 < children.length && children[opIndex + 2].type === 'list') {
+      right = {
+        type: 'list',
+        children: [right, children[opIndex + 2]],
+      };
+      consumedRight = 1;
+    }
+    // Case 2: plain followed by another plain → combine them
+    // Example: "n bd" → (n bd)
+    else if (right.type === 'plain' && opIndex + 2 < children.length && children[opIndex + 2].type === 'plain') {
+      right = {
+        type: 'list',
+        children: [right, children[opIndex + 2]],
+      };
+      consumedRight = 1;
+    }
+    // Case 3: plain followed by leaf (number, string, etc.) → combine them
+    // Example: "n 0" → (n 0)
+    else if (right.type === 'plain' && opIndex + 2 < children.length && isLeaf(children[opIndex + 2])) {
+      right = {
+        type: 'list',
+        children: [right, children[opIndex + 2]],
+      };
+      consumedRight = 1;
+    }
 
-  return { left, right, consumedLeft, consumedRight };
-}
+    return { left, right, consumedLeft, consumedRight };
+  }
 
   get_lambda(args, children) {
     // (.fast 2) = (fn (_) (fast _ 2))
