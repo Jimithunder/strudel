@@ -13,6 +13,7 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
     quantizeSubdivision: 16,
     preserveVelocity: true,
     splitByPitch: false,
+    compress: true, // Add compress option, enabled by default
   });
 
   // Reset state when modal closes
@@ -94,7 +95,8 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
             const varName = `track${trackIndex}_${sp.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
             allCodes.push({
               varName,
-              code: `// ${sp.name}\nconst ${varName} = ${sp.code};`,
+              code: sp.code,
+              trackName: sp.name,
             });
           });
         } else {
@@ -108,34 +110,37 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
           const varName = `track${trackIndex}`;
           allCodes.push({
             varName,
-            code: `// ${track.trackName}\nconst ${varName} = ${code};`,
+            code: code,
+            trackName: track.trackName,
           });
         }
       });
 
-      // Join all codes
-      let finalCode = allCodes.map(c => c.code).join('\n\n');
+      // Build final code with better formatting
+      let finalCode = '';
       
-      // If multiple patterns, add stack at the end
-      if (allCodes.length > 1) {
-        finalCode += '\n\n// Play all tracks together\nstack(\n';
+      if (allCodes.length === 1) {
+        // Single track - just use the pattern directly
+        finalCode = allCodes[0].code;
+      } else {
+        // Multiple tracks - use const and stack with proper formatting
+        finalCode += `// MIDI Import: ${parsedData.tempo} BPM | ${allCodes.length} tracks\n`;
+        finalCode += `// Generated: ${new Date().toLocaleString()}\n\n`;
+        
+        // Set global tempo first
+        finalCode += `setcpm(${parsedData.tempo / 4})\n\n`;
+        
+        // Define each track as a const with clear separation
+        allCodes.forEach((c, idx) => {
+          finalCode += `// Track ${idx + 1}: ${c.trackName}\n`;
+          finalCode += `const ${c.varName} = ${c.code.split('\n').filter(l => !l.startsWith('//')).join('\n')};\n\n`;
+        });
+        
+        // Stack all tracks together
+        finalCode += `// Play all tracks together\n`;
+        finalCode += `stack(\n`;
         finalCode += allCodes.map(c => `  ${c.varName}`).join(',\n');
         finalCode += '\n)';
-      } else if (allCodes.length === 1) {
-        // Single track - just use the pattern directly without const
-        const track = parsedData.tracks[selectedTracks[0]];
-        if (conversionOptions.splitByPitch) {
-          // Already has stack logic in the code
-          finalCode = allCodes[0].code.replace(/^const \w+ = /, '');
-        } else {
-          const code = convertTrackToPattern(track, {
-            ...conversionOptions,
-            ticksPerBeat: parsedData.division,
-            tempo: parsedData.tempo,
-            timeSignature: parsedData.timeSignature,
-          });
-          finalCode = `// ${track.trackName}\n${code}`;
-        }
       }
 
       setGeneratedCode(finalCode);
@@ -230,6 +235,15 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
                   className="mr-2"
                 />
                 Split by pitch (separate bass/mid/high)
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={conversionOptions.compress}
+                  onChange={(e) => setConversionOptions({ ...conversionOptions, compress: e.target.checked })}
+                  className="mr-2"
+                />
+                Compress patterns (use *n, !n, @n operators)
               </label>
             </div>
 

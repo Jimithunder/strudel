@@ -69,22 +69,25 @@ async function analyzeMidi(filepath) {
 async function convertMidi(filepath, ...args) {
   if (!filepath) {
     console.error('Error: Please provide a MIDI file path');
-    console.error('Usage: pnpm midi:convert <file.mid> [output.js] [--split]');
+    console.error('Usage: pnpm midi:convert <file.mid> [output.js] [--split] [--no-compress]');
     process.exit(1);
   }
 
-  // Check for --split flag and filter it out from args
+  // Check for flags and filter them out from args
   const splitByPitch = process.argv.includes('--split');
+  const compress = !process.argv.includes('--no-compress'); // Default to compress unless --no-compress
   const outputPath = args.find(arg => arg && !arg.startsWith('--'));
 
   try {
     console.log(`\n=== Converting MIDI to Strudel Pattern ===`);
     console.log(`Input: ${filepath}`);
     if (splitByPitch) {
-      console.log(`Mode: Split by pitch ranges\n`);
-    } else {
-      console.log('');
+      console.log(`Mode: Split by pitch ranges`);
     }
+    if (!compress) {
+      console.log(`Compression: Disabled (--no-compress)`);
+    }
+    console.log('');
 
     // Read the MIDI file
     const buffer = await readFile(filepath);
@@ -110,6 +113,7 @@ async function convertMidi(filepath, ...args) {
             quantizeSubdivision: 16,
             tempo: parsed.tempo,
             timeSignature: parsed.timeSignature,
+            compress, // Pass compress option
           });
           
           splitPatterns.forEach((sp) => {
@@ -127,6 +131,7 @@ async function convertMidi(filepath, ...args) {
             quantizeSubdivision: 16,
             tempo: parsed.tempo,
             timeSignature: parsed.timeSignature,
+            compress, // Pass compress option
           });
           patterns.push({
             trackName: track.trackName,

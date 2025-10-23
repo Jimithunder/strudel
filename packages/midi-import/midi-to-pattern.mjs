@@ -148,18 +148,123 @@ function groupEventsByTime(events, ticksPerBeat, subdivision, durations) {
 }
 
 /**
+ * Detect repetitive patterns in an array
+ * @private
+ */
+function findRepetitions(arr) {
+  const results = [];
+  
+  for (let patternLen = 1; patternLen <= Math.floor(arr.length / 2); patternLen++) {
+    for (let startIdx = 0; startIdx < arr.length; startIdx += patternLen) {
+      const pattern = arr.slice(startIdx, startIdx + patternLen);
+      let repeatCount = 1;
+      
+      // Check how many times this pattern repeats
+      while (
+        startIdx + (repeatCount + 1) * patternLen <= arr.length &&
+        arraysEqual(pattern, arr.slice(startIdx + repeatCount * patternLen, startIdx + (repeatCount + 1) * patternLen))
+      ) {
+        repeatCount++;
+      }
+      
+      if (repeatCount >= 2) {
+        results.push({
+          start: startIdx,
+          length: patternLen,
+          count: repeatCount,
+          pattern: pattern
+        });
+      }
+    }
+  }
+  
+  // Return the longest repetition found
+  return results.sort((a, b) => (b.length * b.count) - (a.length * a.count))[0];
+}
+
+function arraysEqual(a, b) {
+  if (a.length !== b.length) return false;
+  return a.every((val, idx) => val === b[idx]);
+}
+
+/**
+ * Compress patterns using mini notation
+ * @private
+ */
+function compressPattern(events) {
+  if (events.length === 0) return '';
+  
+  // Try to find repetitions
+  const rep = findRepetitions(events);
+  
+  if (rep && rep.count >= 3) {
+    // Found significant repetition, use multiplication
+    const before = events.slice(0, rep.start);
+    const repeated = rep.pattern;
+    const after = events.slice(rep.start + rep.length * rep.count);
+    
+    let result = '';
+    if (before.length > 0) {
+      result += compressPattern(before) + ' ';
+    }
+    
+    // If the repeated chunk contains more than one slot, prefer replication
+    // operator '!' which repeats a chunk without altering perceived density/timing.
+    // Use '*' (speed up) only for single-element repetitions where increasing density is intended.
+    if (repeated.length > 1) {
+      // wrap the chunk in brackets and replicate it
+      result += `[${repeated.join(' ')}]!${rep.count}`;
+    } else {
+      // single element repeated -> safe to use replication operator as well
+      result += `${repeated[0]}!${rep.count}`;
+    }
+    
+    if (after.length > 0) {
+      result += ' ' + compressPattern(after);
+    }
+    
+    return result;
+  }
+  
+  // Check for elongation patterns (same note repeated)
+  let i = 0;
+  const parts = [];
+  
+  while (i < events.length) {
+    const current = events[i];
+    let count = 1;
+    
+    while (i + count < events.length && events[i + count] === current && current !== '~') {
+      count++;
+    }
+    
+    if (count >= 3 && current !== '~') {
+      // Use elongation operator
+      parts.push(`${current}@${count}`);
+      i += count;
+    } else {
+      parts.push(current);
+      i++;
+    }
+  }
+  
+  return parts.join(' ');
+}
+
+/**
  * Convert MIDI track to Strudel pattern code
  * @param {Object} track - MIDI track data from extractTracks()
  * @param {Object} options - Conversion options
  * @param {boolean} options.quantize - Whether to quantize timing (default: true)
  * @param {number} options.quantizeSubdivision - Subdivision for quantization (default: 16)
  * @param {boolean} options.preserveVelocity - Include velocity/gain (default: false)
+ * @param {boolean} options.compress - Apply pattern compression (default: true)
  * @param {number} options.ticksPerBeat - Ticks per quarter note (from MIDI file division)
  * @param {number} options.tempo - BPM from MIDI file (default: 120)
  * @param {Object} options.timeSignature - Time signature from MIDI file (default: 4/4)
  * @returns {string} Generated Strudel pattern code
  * @example
- * const code = convertTrackToPattern(track, { quantize: true, ticksPerBeat: 384, tempo: 120 });
+ * const code = convertTrackToPattern(track, { quantize: true, compress: true, ticksPerBeat: 384, tempo: 120 });
  * console.log(code); // 'note("c4 d4 e4 f4").cps(2)'
  */
 export function convertTrackToPattern(track, options = {}) {
@@ -167,6 +272,7 @@ export function convertTrackToPattern(track, options = {}) {
     quantize: true,
     quantizeSubdivision: 16,
     preserveVelocity: false,
+    compress: true, // Enable compression by default
     ticksPerBeat: 384, // Default MIDI resolution
     tempo: 120, // Default BPM
     ...options,
@@ -232,40 +338,68 @@ export function convertTrackToPattern(track, options = {}) {
     return '// Pattern only contains rests';
   }
 
+  // Detect appropriate instrument from track name or use override
+  const instrument = opts._instrumentOverride || detectInstrument(track.trackName);
+  
   // Group events into measures
-  // Each measure has quantizeSubdivision events (16 for sixteenth notes in 4/4)
   const measures = [];
   for (let i = 0; i < allEvents.length; i += opts.quantizeSubdivision) {
     const measureEvents = allEvents.slice(i, i + opts.quantizeSubdivision);
-    measures.push(`[${measureEvents.join(' ')}]`);
+    // Apply compression only if enabled
+    const measurePattern = opts.compress ? compressPattern(measureEvents) : measureEvents.join(' ');
+    measures.push(measurePattern);
   }
 
-  // Generate code based on pattern length and complexity
-  const miniNotation = measures.join(' ');
-
-  // Detect appropriate instrument from track name or use override
-  const instrument = opts._instrumentOverride || detectInstrument(track.trackName);
-
-  // In Strudel mini notation like "[a b c] [d e f]":
-  // - Each top-level element is 1 cycle
-  // - So measures.length measures = measures.length cycles
-  // - Each measure should last (60 / BPM) * beatsPerMeasure seconds
-  // - By default each cycle = 1 second, so we need to slow by secondsPerMeasure
+  // If all measures are identical, use repetition
+  const allSame = measures.every(m => m === measures[0]);
+  let miniNotation;
   
-  const beatsPerMeasure = opts.timeSignature?.numerator || 4;
-  const secondsPerMeasure = (60 / opts.tempo) * beatsPerMeasure;
-  const measuresCount = measures.length;
-  
-  // Each measure needs to be stretched from 1 second to secondsPerMeasure seconds
-  const slowFactor = secondsPerMeasure;
-  
-  // Add comment for longer patterns
-  const comment = allEvents.length > 32
-    ? `// ${allEvents.length} events over ${measuresCount} measures at ${opts.tempo} BPM\n`
-    : '';
+  if (allSame && measures.length > 1) {
+    // All measures are the same - use angle brackets for alternation or just one measure
+    miniNotation = measures[0];
+    if (measures.length > 2) {
+      miniNotation = `<${measures[0]}>`;
+    }
+  } else if (measures.length > 4) {
+    // Many different measures - use angle brackets to cycle through them
+    miniNotation = `<${measures.map(m => `[${m}]`).join(' ')}>`;
+  } else {
+    // Few measures - just concatenate with division if needed
+    // Each measure is 1 beat worth of subdivisions
+    // If we have multiple measures, each one is played sequentially
+    // Default: [measure1] [measure2] where each bracket is 1 cycle
+    // We need each measure to last the correct duration
+    
+    const beatsPerMeasure = opts.timeSignature?.numerator || 4;
+    
+    if (measures.length === 1) {
+      // Single measure - might need to slow it down if it's a full bar
+      miniNotation = `[${measures[0]}]`;
+      if (beatsPerMeasure > 1) {
+        // Slow down so the full measure lasts beatsPerMeasure beats
+        miniNotation += `/${beatsPerMeasure}`;
+      }
+    } else {
+      // Multiple measures - wrap each and concatenate
+      miniNotation = measures.map(m => `[${m}]`).join(' ');
+      if (beatsPerMeasure > 1) {
+        // Slow the entire pattern
+        miniNotation = `[${miniNotation}]/${beatsPerMeasure}`;
+      }
+    }
+  }
 
-  // Use .slow() to stretch each measure to proper duration
-  return `${comment}note("${miniNotation}").s("${instrument}").slow(${slowFactor.toFixed(2)})`;
+  // Build the final pattern with proper formatting
+  const lines = [];
+  
+  // Header comment with essential info
+  lines.push(`// ${track.trackName} | ${opts.tempo} BPM | ${allEvents.length} events`);
+  
+  // Main pattern - tempo is set globally via setcpm()
+  lines.push(`note("${miniNotation}")`);
+  lines.push(`  .s("${instrument}")`);
+  
+  return lines.join('\n');
 }
 
 /**
