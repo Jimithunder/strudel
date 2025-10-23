@@ -15,7 +15,7 @@ import { MidiImportModal } from '../MidiImportModal.jsx';
 const getSamples = (samples) =>
   Array.isArray(samples) ? samples.length : typeof samples === 'object' ? Object.values(samples).length : 1;
 
-export function SoundsTab() {
+export function SoundsTab({ context }) {
   const sounds = useStore(soundMap);
 
   const { soundsFilter } = useSettings();
@@ -119,12 +119,16 @@ export function SoundsTab() {
         isOpen={midiModalOpen}
         onClose={() => setMidiModalOpen(false)}
         onInsert={(code) => {
-          // TODO: Insert code into editor
-          console.log('Insert:', code);
+          if (context?.editorRef?.current) {
+            const currentCode = context.activeCode || '';
+            const newCode = currentCode ? `${currentCode}\n\n${code}` : code;
+            context.editorRef.current.setCode(newCode);
+          }
         }}
         onReplace={(code) => {
-          // TODO: Replace editor content
-          console.log('Replace:', code);
+          if (context?.editorRef?.current) {
+            context.editorRef.current.setCode(code);
+          }
         }}
       />
 

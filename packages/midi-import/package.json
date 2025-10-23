@@ -2,14 +2,20 @@
   "name": "@strudel/midi-import",
   "version": "0.1.0",
   "description": "MIDI file import and conversion to Strudel patterns",
-  "main": "midi-import.mjs",
+  "main": "index.mjs",
   "type": "module",
   "publishConfig": {
     "main": "dist/index.mjs"
   },
   "scripts": {
     "build": "vite build",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "midi:analyze": "node cli.mjs analyze",
+    "midi:convert": "node cli.mjs convert",
+    "midi:help": "node cli.mjs help"
+  },
+  "bin": {
+    "strudel-midi": "./cli.mjs"
   },
   "repository": {
     "type": "git",
@@ -31,7 +37,7 @@
   "homepage": "https://codeberg.org/uzu/strudel#readme",
   "dependencies": {
     "@strudel/core": "workspace:*",
-    "midi-json-parser": "^7.1.2"
+    "midi-file": "^1.2.4"
   },
   "devDependencies": {
     "vite": "^6.0.11"

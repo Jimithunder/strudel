@@ -1,10 +1,10 @@
 /*
  * MIDI File Parser
  * Parses binary MIDI files into structured JavaScript objects
- * Uses midi-json-parser library for low-level parsing
+ * Uses midi-file library for parsing (compatible with Node.js and browser)
  */
 
-import { parseArrayBuffer } from 'midi-json-parser';
+import { parseMidi } from 'midi-file';
 
 /**
  * Parse a MIDI file from ArrayBuffer
@@ -25,7 +25,9 @@ export async function parseMidiFile(arrayBuffer) {
   }
 
   try {
-    const parsed = await parseArrayBuffer(arrayBuffer);
+    // Convert ArrayBuffer to Uint8Array for midi-file
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const parsed = parseMidi(uint8Array);
     const normalized = normalizeMidiData(parsed);
     return normalized;
   } catch (error) {
@@ -54,7 +56,7 @@ export function isValidMidiFile(arrayBuffer) {
 
 /**
  * Extract metadata from parsed MIDI data
- * @param {Object} midiData - Parsed MIDI data from midi-json-parser
+ * @param {Object} midiData - Parsed MIDI data from midi-file
  * @returns {Object} Metadata including tempo, time signature, key signature
  * @example
  * const metadata = extractMetadata(parsed);
@@ -72,26 +74,28 @@ export function extractMetadata(midiData) {
   // Tempo in MIDI is microseconds per quarter note
   // BPM = 60,000,000 / microsecondsPerQuarterNote
   const tempoEvents = [];
+
   midiData.tracks.forEach((track) => {
     track.forEach((event) => {
-      if (event.setTempo) {
-        const bpm = Math.round(60000000 / event.setTempo.microsecondsPerQuarter);
-        tempoEvents.push({ time: event.delta || 0, bpm });
+      // midi-file uses 'type' property for event types
+      if (event.type === 'setTempo') {
+        const bpm = Math.round(60000000 / event.microsecondsPerBeat);
+        tempoEvents.push({ time: event.deltaTime || 0, bpm });
       }
-      if (event.timeSignature) {
+      if (event.type === 'timeSignature') {
         metadata.timeSignature = {
-          numerator: event.timeSignature.numerator,
-          denominator: event.timeSignature.denominator,
+          numerator: event.numerator,
+          denominator: event.denominator,
         };
       }
-      if (event.keySignature) {
+      if (event.type === 'keySignature') {
         metadata.keySignature = {
-          key: event.keySignature.key,
-          scale: event.keySignature.scale,
+          key: event.key,
+          scale: event.scale === 0 ? 'major' : 'minor',
         };
       }
-      if (event.trackName) {
-        metadata.trackNames.push(event.trackName);
+      if (event.type === 'trackName') {
+        metadata.trackNames.push(event.text);
       }
     });
   });
@@ -132,35 +136,37 @@ export function extractTracks(midiData) {
     let trackName = null;
 
     trackEvents.forEach((event) => {
-      absoluteTime += event.delta || 0;
+      absoluteTime += event.deltaTime || 0;
 
       // Extract track name
-      if (event.trackName) {
-        trackName = event.trackName;
+      if (event.type === 'trackName') {
+        trackName = event.text;
       }
 
       // Process note events
-      if (event.noteOn) {
+      // midi-file uses 'noteOn' type with velocity > 0, or velocity === 0 for noteOff
+      if (event.type === 'noteOn' && event.velocity > 0) {
         track.noteCount++;
-        const noteNumber = event.noteOn.noteNumber;
+        const noteNumber = event.noteNumber;
         track.pitchRange.min = Math.min(track.pitchRange.min, noteNumber);
         track.pitchRange.max = Math.max(track.pitchRange.max, noteNumber);
 
         track.events.push({
           type: 'noteOn',
           noteNumber,
-          velocity: event.noteOn.velocity,
-          deltaTime: event.delta || 0,
+          velocity: event.velocity,
+          deltaTime: event.deltaTime || 0,
           absoluteTime,
         });
       }
 
-      if (event.noteOff) {
+      // Note off can be either noteOff type or noteOn with velocity 0
+      if (event.type === 'noteOff' || (event.type === 'noteOn' && event.velocity === 0)) {
         track.events.push({
           type: 'noteOff',
-          noteNumber: event.noteOff.noteNumber,
-          velocity: event.noteOff.velocity || 0,
-          deltaTime: event.delta || 0,
+          noteNumber: event.noteNumber,
+          velocity: event.velocity || 0,
+          deltaTime: event.deltaTime || 0,
           absoluteTime,
         });
       }
@@ -190,16 +196,25 @@ export function extractTracks(midiData) {
 /**
  * Normalize parsed MIDI data into consistent structure
  * @private
- * @param {Object} parsed - Raw parsed data from midi-json-parser
+ * @param {Object} parsed - Raw parsed data from midi-file
  * @returns {Object} Normalized MIDI data
  */
 function normalizeMidiData(parsed) {
-  const metadata = extractMetadata(parsed);
-  const tracks = extractTracks(parsed);
+  // midi-file returns { header: { format, numTracks, ticksPerBeat }, tracks: [...] }
+  // We need to normalize to our expected structure
+
+  const midiData = {
+    format: parsed.header.format,
+    division: parsed.header.ticksPerBeat,
+    tracks: parsed.tracks,
+  };
+
+  const metadata = extractMetadata(midiData);
+  const tracks = extractTracks(midiData);
 
   return {
-    format: parsed.format,
-    division: parsed.division,
+    format: midiData.format,
+    division: midiData.division,
     tracks,
     tempo: metadata.tempo,
     timeSignature: metadata.timeSignature,

@@ -31,6 +31,7 @@
     "@strudel/gamepad": "workspace:*",
     "@strudel/hydra": "workspace:*",
     "@strudel/midi": "workspace:*",
+    "@strudel/midi-import": "workspace:*",
     "@strudel/mini": "workspace:*",
     "@strudel/motion": "workspace:*",
     "@strudel/mqtt": "workspace:*",

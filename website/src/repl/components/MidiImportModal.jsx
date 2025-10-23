@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { parseMidiFile, isValidMidiFile, convertTrackToPattern } from '@strudel/midi-import';
+import { useState, useCallback, useEffect } from 'react';
+import { parseMidiFile, isValidMidiFile, convertTrackToPattern, convertTrackWithSplit } from '@strudel/midi-import';
 import { MidiTrackSelector } from './MidiTrackSelector.jsx';
 
 export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
@@ -12,7 +12,19 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
     quantize: true,
     quantizeSubdivision: 16,
     preserveVelocity: true,
+    splitByPitch: false,
   });
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setUploadState('idle');
+      setParsedData(null);
+      setSelectedTracks([]);
+      setGeneratedCode('');
+      setErrorMessage(null);
+    }
+  }, [isOpen]);
 
   const handleFileSelect = useCallback(async (file) => {
     if (!file) return;
@@ -63,13 +75,69 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
     setUploadState('converting');
 
     try {
-      const codes = selectedTracks.map((trackIndex) => {
+      const allCodes = [];
+
+      selectedTracks.forEach((trackIndex) => {
         const track = parsedData.tracks[trackIndex];
-        const code = convertTrackToPattern(track, conversionOptions);
-        return `// ${track.trackName}\n${code}`;
+        
+        if (conversionOptions.splitByPitch) {
+          // Split by pitch ranges
+          const splitPatterns = convertTrackWithSplit(track, {
+            ...conversionOptions,
+            ticksPerBeat: parsedData.division,
+            tempo: parsedData.tempo,
+            timeSignature: parsedData.timeSignature,
+          });
+
+          // Generate code for each split pattern
+          splitPatterns.forEach((sp, idx) => {
+            const varName = `track${trackIndex}_${sp.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+            allCodes.push({
+              varName,
+              code: `// ${sp.name}\nconst ${varName} = ${sp.code};`,
+            });
+          });
+        } else {
+          // Normal conversion
+          const code = convertTrackToPattern(track, {
+            ...conversionOptions,
+            ticksPerBeat: parsedData.division,
+            tempo: parsedData.tempo,
+            timeSignature: parsedData.timeSignature,
+          });
+          const varName = `track${trackIndex}`;
+          allCodes.push({
+            varName,
+            code: `// ${track.trackName}\nconst ${varName} = ${code};`,
+          });
+        }
       });
 
-      const finalCode = codes.join('\n\n');
+      // Join all codes
+      let finalCode = allCodes.map(c => c.code).join('\n\n');
+      
+      // If multiple patterns, add stack at the end
+      if (allCodes.length > 1) {
+        finalCode += '\n\n// Play all tracks together\nstack(\n';
+        finalCode += allCodes.map(c => `  ${c.varName}`).join(',\n');
+        finalCode += '\n)';
+      } else if (allCodes.length === 1) {
+        // Single track - just use the pattern directly without const
+        const track = parsedData.tracks[selectedTracks[0]];
+        if (conversionOptions.splitByPitch) {
+          // Already has stack logic in the code
+          finalCode = allCodes[0].code.replace(/^const \w+ = /, '');
+        } else {
+          const code = convertTrackToPattern(track, {
+            ...conversionOptions,
+            ticksPerBeat: parsedData.division,
+            tempo: parsedData.tempo,
+            timeSignature: parsedData.timeSignature,
+          });
+          finalCode = `// ${track.trackName}\n${code}`;
+        }
+      }
+
       setGeneratedCode(finalCode);
       setUploadState('done');
     } catch (error) {
@@ -81,6 +149,14 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
   const handleCopyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(generatedCode);
   }, [generatedCode]);
+
+  const handleReset = useCallback(() => {
+    setUploadState('idle');
+    setParsedData(null);
+    setSelectedTracks([]);
+    setGeneratedCode('');
+    setErrorMessage(null);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -146,6 +222,15 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
                 />
                 Preserve velocity
               </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={conversionOptions.splitByPitch}
+                  onChange={(e) => setConversionOptions({ ...conversionOptions, splitByPitch: e.target.checked })}
+                  className="mr-2"
+                />
+                Split by pitch (separate bass/mid/high)
+              </label>
             </div>
 
             <div className="mt-4 flex gap-2">
@@ -166,7 +251,7 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
               readOnly
               className="w-full h-64 bg-gray-900 text-white p-2 rounded font-mono text-sm"
             />
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex gap-2 flex-wrap">
               <button
                 onClick={() => {
                   onInsert(generatedCode);
@@ -187,6 +272,9 @@ export function MidiImportModal({ isOpen, onClose, onInsert, onReplace }) {
               </button>
               <button onClick={handleCopyToClipboard} className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded">
                 Copy to Clipboard
+              </button>
+              <button onClick={handleReset} className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded">
+                Load Another File
               </button>
               <button onClick={onClose} className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded">
                 Close

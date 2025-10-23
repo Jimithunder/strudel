@@ -4,4 +4,11 @@
 export { parseMidiFile, isValidMidiFile, extractMetadata, extractTracks } from './midi-import.mjs';
 
 // Pattern conversion
-export { convertTrackToPattern, analyzeTrack, noteNumberToName, formatPatternCode } from './midi-to-pattern.mjs';
+export { 
+  convertTrackToPattern, 
+  analyzeTrack, 
+  noteNumberToName, 
+  formatPatternCode,
+  splitTrackByPitch,
+  convertTrackWithSplit
+} from './midi-to-pattern.mjs';
