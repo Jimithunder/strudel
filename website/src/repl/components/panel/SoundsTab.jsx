@@ -10,6 +10,7 @@ import { ActionButton } from '../button/action-button.jsx';
 import { confirmDialog } from '@src/repl/util.mjs';
 import { clearIDB, userSamplesDBConfig } from '@src/repl/idbutils.mjs';
 import { prebake } from '@src/repl/prebake.mjs';
+import { MidiImportModal } from '../MidiImportModal.jsx';
 
 const getSamples = (samples) =>
   Array.isArray(samples) ? samples.length : typeof samples === 'object' ? Object.values(samples).length : 1;
@@ -19,6 +20,7 @@ export function SoundsTab() {
 
   const { soundsFilter } = useSettings();
   const [search, setSearch] = useState('');
+  const [midiModalOpen, setMidiModalOpen] = useState(false);
   const { BASE_URL } = import.meta.env;
   const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
 
@@ -87,24 +89,44 @@ export function SoundsTab() {
         ></ButtonGroup>
       </div>
 
-      {soundsFilter === soundFilterType.USER && soundEntries.length > 0 && (
+      <div className="flex gap-2">
         <ActionButton
           className="pl-2"
-          label="delete-all"
-          onClick={async () => {
-            try {
-              const confirmed = await confirmDialog('Delete all imported user samples?');
-              if (confirmed) {
-                clearIDB(userSamplesDBConfig.dbName);
-                soundMap.set({});
-                await prebake();
-              }
-            } catch (e) {
-              console.error(e);
-            }
-          }}
+          label="Import MIDI File"
+          onClick={() => setMidiModalOpen(true)}
         />
-      )}
+        {soundsFilter === soundFilterType.USER && soundEntries.length > 0 && (
+          <ActionButton
+            className="pl-2"
+            label="delete-all"
+            onClick={async () => {
+              try {
+                const confirmed = await confirmDialog('Delete all imported user samples?');
+                if (confirmed) {
+                  clearIDB(userSamplesDBConfig.dbName);
+                  soundMap.set({});
+                  await prebake();
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+          />
+        )}
+      </div>
+
+      <MidiImportModal
+        isOpen={midiModalOpen}
+        onClose={() => setMidiModalOpen(false)}
+        onInsert={(code) => {
+          // TODO: Insert code into editor
+          console.log('Insert:', code);
+        }}
+        onReplace={(code) => {
+          // TODO: Replace editor content
+          console.log('Replace:', code);
+        }}
+      />
 
       <div className="min-h-0 max-h-full grow overflow-auto  text-sm break-normal bg-background p-2 rounded-md">
         {soundEntries.map(([name, { data, onTrigger }]) => {
