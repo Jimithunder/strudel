@@ -129,8 +129,7 @@ const mergeControls = (av, bv, safeOp) => {
 // appMethod: the applicative method to use ('appBoth', 'appLeft', or 'appRight')
 const createStructuredOp = (safeOp, appMethod) => (a, b) =>
   reify(a)
-    .fmap((av) => (bv) => mergeControls(av, bv, safeOp))
-    [appMethod](reify(b));
+    .fmap((av) => (bv) => mergeControls(av, bv, safeOp)) [appMethod](reify(b));
 
 // Register all structured operators
 const operators = ['add', 'sub', 'mul', 'div', 'mod'];
