@@ -199,7 +199,7 @@ export default function ExportModal(Props) {
             disabled={exporting}
             onClick={async () => {
               setExporting(true);
-              setTimeout(refreshProgress, 1000);
+              setTimeout(refreshProgress, 2000);
               await handleExport(startCycle, endCycle, sampleRate, maxPolyphony, multiChannelOrbits, downloadName)
                 .then(() => {
                   const modal = document.getElementById('exportModal');
@@ -212,13 +212,13 @@ export default function ExportModal(Props) {
                 });
             }}
           >
-            <span className="text-foreground">{exporting ? 'Exporting...' : 'Export to WAV'}</span>
             <div
-              className="bg-foreground opacity-10 absolute top-0 left-0 right-0 bottom-0"
+              className="absolute top-0 left-0 right-0 bottom-0 backdrop-invert"
               style={{
-                width: `${(progress / length) * 100}%`,
+                width: `${(exporting ? 1 : 0) + (progress / length) * 99}%`
               }}
             />
+            <span className="text-foreground">{exporting ? 'Exporting...' : 'Export to WAV'}</span>
           </button>
         </div>
       </dialog>
