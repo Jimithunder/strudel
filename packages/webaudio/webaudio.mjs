@@ -14,12 +14,8 @@ import {
   setAudioContext,
   initAudio,
   setSuperdoughAudioController,
-  setMaxPolyphony,
-  setMultiChannelOrbits,
   resetGlobalEffects,
-  errorLogger,
-  maxPolyphony as superdoughMaxPolyphony,
-  multiChannelOrbits as superdoughMultiChannelOrbits
+  errorLogger
 } from 'superdough';
 import './supradough.mjs';
 import { workletUrl } from 'supradough';
@@ -51,10 +47,6 @@ export async function renderPatternAudio(
   multiChannelOrbits,
   downloadName = undefined,
 ) {
-  let realtimeOptions = {
-    maxPolyphony: superdoughMaxPolyphony,
-    multiChannelOrbits: superdoughMultiChannelOrbits
-  }
   let audioContext = getAudioContext();
   await audioContext.close();
   audioContext = new OfflineAudioContext(2, ((end - begin) / cps) * sampleRate, sampleRate);
@@ -63,28 +55,26 @@ export async function renderPatternAudio(
   await initAudio({
     maxPolyphony,
     multiChannelOrbits
-  });
+  })
   logger('[webaudio] preloading');
 
   let haps = pattern.queryArc(begin, end, { _cps: cps });
 
-  await Promise.all(
-    haps.map(async (hap) => {
-      if (hap.hasOnset()) {
-        try {
-          await superdough(
-            hap2value(hap),
-            hap.whole.begin.valueOf() / cps,
-            hap.duration / cps,
-            cps,
-            hap.whole?.begin.valueOf(),
-          );
-        } catch (err) {
-          errorLogger(err, 'webaudio');
-        }
+  for (const hap of haps) {
+    if (hap.hasOnset()) {
+      try {
+        await superdough(
+          hap2value(hap),
+          (hap.whole.begin.valueOf() - begin) / cps,
+          hap.duration / cps,
+          cps,
+          (hap.whole?.begin.valueOf() - begin) / cps,
+        );
+      } catch (err) {
+        errorLogger(err, 'webaudio');
       }
-    }),
-  );
+    }
+  }
   logger('[webaudio] start rendering');
 
   return audioContext
@@ -106,7 +96,6 @@ export async function renderPatternAudio(
       setAudioContext(null);
       setSuperdoughAudioController(null);
       resetGlobalEffects();
-      await initAudio(realtimeOptions);
     });
 }
 

@@ -15,6 +15,7 @@ import {
   resetLoadedSounds,
   initAudioOnFirstClick,
   resetDefaults,
+  initAudio,
 } from '@strudel/webaudio';
 import { setVersionDefaultsFrom } from './util.mjs';
 import { StrudelMirror, defaultSettings } from '@strudel/codemirror';
@@ -217,7 +218,14 @@ export function useReplContext() {
       maxPolyphony,
       multiChannelOrbits,
       downloadName,
-    ).finally(() => {
+    ).finally(async () => {
+      const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get()
+      await initAudio({
+        latestCode,
+        maxPolyphony,
+        audioDeviceName,
+        multiChannelOrbits
+      })
       editorRef.current.repl.scheduler.stop();
     });
   };
