@@ -219,13 +219,13 @@ export function useReplContext() {
       multiChannelOrbits,
       downloadName,
     ).finally(async () => {
-      const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get()
+      const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get();
       await initAudio({
         latestCode,
         maxPolyphony,
         audioDeviceName,
-        multiChannelOrbits
-      })
+        multiChannelOrbits,
+      });
       editorRef.current.repl.scheduler.stop();
     });
   };

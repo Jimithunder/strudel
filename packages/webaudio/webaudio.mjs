@@ -15,7 +15,7 @@ import {
   initAudio,
   setSuperdoughAudioController,
   resetGlobalEffects,
-  errorLogger
+  errorLogger,
 } from 'superdough';
 import './supradough.mjs';
 import { workletUrl } from 'supradough';
@@ -54,8 +54,8 @@ export async function renderPatternAudio(
   setSuperdoughAudioController(new SuperdoughAudioController(audioContext));
   await initAudio({
     maxPolyphony,
-    multiChannelOrbits
-  })
+    multiChannelOrbits,
+  });
   logger('[webaudio] preloading');
 
   let haps = pattern.queryArc(begin, end, { _cps: cps });

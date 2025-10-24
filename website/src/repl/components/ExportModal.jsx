@@ -3,9 +3,7 @@ import cx from '@src/cx.mjs';
 import NumberInput from './NumberInput';
 import { useEffect, useState } from 'react';
 import { Textbox } from './textbox/Textbox';
-import {
-  getAudioContext,
-} from '@strudel/webaudio';
+import { getAudioContext } from '@strudel/webaudio';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 
 function Checkbox({ label, value, onChange, disabled = false }) {
@@ -215,7 +213,7 @@ export default function ExportModal(Props) {
             <div
               className="absolute top-0 left-0 right-0 bottom-0 backdrop-invert"
               style={{
-                width: `${(exporting ? 1 : 0) + (progress / length) * 99}%`
+                width: `${(exporting ? 1 : 0) + (progress / length) * 99}%`,
               }}
             />
             <span className="text-foreground">{exporting ? 'Exporting...' : 'Export to WAV'}</span>
