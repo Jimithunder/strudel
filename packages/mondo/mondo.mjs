@@ -47,10 +47,11 @@ export class MondoParser {
     op_left: /^\|[*\/:!@%?+\-](?!\|)/, // |+, |-, |*, etc. - structure from left
     op_right: /^[*\/:!@%?+\-]\|/, // +|, -|, *|, etc. - structure from right
     op: /^[*/:!@%?+-]|^\.{2}/, // * / : ! @ % ? ..
-    // dollar: /^\$/,    pipe: /^#/,
+    // dollar: /^\$/,
+    pipe: /^#/,
     stack: /^[,$]/,
     or: /^[|]/,
-    plain: /^[a-zA-Z0-9-~_^#]+/,
+    plain: /^[a-zA-Z0-9-~_^]+/,
   };
   /* eslint-enable no-useless-escape, no-unexpected-multiline */
   // matches next token
