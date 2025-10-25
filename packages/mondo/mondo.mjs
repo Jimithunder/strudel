@@ -102,25 +102,15 @@ export class MondoParser {
       // empty case
       return { type: 'list', children: [] };
     }
-
-    // Filter out comments at the top level before processing
-    const nonCommentExpressions = expressions.filter((expr) => expr.type !== 'comment');
-
-    // If we only had comments, return empty list
-    if (nonCommentExpressions.length === 0) {
-      return { type: 'list', children: [] };
-    }
-
     // do we have multiple top level expressions or a single non list?
-    if (nonCommentExpressions.length > 1 || nonCommentExpressions[0].type !== 'list') {
+    if (expressions.length > 1 || expressions[0].type !== 'list') {
       return {
         type: 'list',
-        children: this.desugar(nonCommentExpressions),
+        children: this.desugar(expressions),
       };
     }
-
-    // we have a single non-comment expression that is a list
-    return nonCommentExpressions[0];
+    // we have a single list
+    return expressions[0];
   }
   // parses any valid expression
   parse_expr() {
