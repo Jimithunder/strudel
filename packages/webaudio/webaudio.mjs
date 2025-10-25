@@ -58,10 +58,11 @@ export async function renderPatternAudio(
   });
   logger('[webaudio] preloading');
 
+  // Calling superdough(...) in ascending onset time order is important
+  // for controls that depend on the audio graph state like `cut`
   let haps = pattern
     .queryArc(begin, end, { _cps: cps })
     .sort((a, b) => a.whole.begin.valueOf() - b.whole.begin.valueOf());
-
   for (const hap of haps) {
     if (hap.hasOnset()) {
       try {
