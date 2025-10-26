@@ -24,6 +24,8 @@ After cloning the project, you can run the REPL locally:
    pnpm dev
    ```
 
+If you use VS Code (or any devcontainer-aware editor), open the folder and choose `Dev Containers: Reopen in Container` to start a preconfigured environment with Node, pnpm, Rust, and the required Tauri dependencies already installed.
+
 ## Using Strudel In Your Project
 
 This project is organized into many [packages](./packages), which are also available on [npm](https://www.npmjs.com/search?q=%40strudel).

@@ -1,0 +1,36 @@
+{
+  "name": "Strudel Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "args": {
+      "NODE_VERSION": "24",
+      "PNPM_VERSION": "9.15.2",
+      "RUST_TOOLCHAIN": "stable"
+    }
+  },
+  "workspaceFolder": "/workspaces/strudel",
+  "remoteUser": "vscode",
+  "postCreateCommand": "pnpm install --frozen-lockfile",
+  "updateContentCommand": "pnpm install --frozen-lockfile",
+  "forwardPorts": [4321],
+  "portsAttributes": {
+    "4321": {
+      "label": "Strudel dev server"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "rust-lang.rust-analyzer",
+        "tauri-apps.tauri-vscode"
+      ],
+      "settings": {
+        "eslint.packageManager": "pnpm",
+        "files.eol": "\n"
+      }
+    }
+  }
+}
